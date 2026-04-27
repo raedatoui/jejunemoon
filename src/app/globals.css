@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+    --font-header: var(--font-museo-moderno);
+    --font-body: var(--font-lato);
+}
+
+body {
+    font-family: var(--font-body), sans-serif;
+    background-color: #fef7d4;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-header), system-ui;
+}
+
+.font-header {
+    font-family: var(--font-header), system-ui;
+}
+
+.font-body {
+    font-family: var(--font-body), sans-serif;
+}
+
+@utility perspective-1000 {
+    perspective: 1000px;
+}
+
+@utility preserve-3d {
+    transform-style: preserve-3d;
+}
+
+@utility backface-hidden {
+    backface-visibility: hidden;
+}
+
+@utility rotate-y-180 {
+    transform: rotateY(180deg);
+}

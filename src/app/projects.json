@@ -1,0 +1,73 @@
+{
+    "projects": [
+        {
+            "title": "July 19, 2024",
+            "thumb": "/albums/3EljouHoyrBk6jDo6DLzZ4.jpg",
+            "artist": "Kenneth Kirschner",
+            "year": "2025",
+            "genre": "Contemporary Classical",
+            "links": [
+                {
+                    "type": "spotify",
+                    "url": "https://open.spotify.com/album/3EljouHoyrBk6jDo6DLzZ4"
+                }
+            ]
+        },
+        {
+            "title": "It Stays",
+            "thumb": "/albums/it-stays.jpg",
+            "artist": "Ludabuddha, Mina",
+            "year": "2026",
+            "genre": "Alternative",
+            "links": [
+                {
+                    "type": "spotify",
+                    "url": "https://open.spotify.com/album/59AzsU5fZr7wrQ0XEm0Fre"
+                }
+            ]
+        },
+
+        {
+            "title": "Disobey",
+            "thumb": "/albums/1tR02Dmgw8WzDi2fd6ZUbU.jpg",
+            "artist": "Mina",
+            "year": "2024",
+            "genre": "Alternative",
+            "links": [
+
+                {
+                    "platform": "Spotify",
+                    "url": "https://lynkify.in/album/disobey/67931949?id=1"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://lynkify.in/album/disobey/67931949?id=2"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://lynkify.in/album/disobey/67931949?id=4"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://lynkify.in/album/disobey/67931949?id=5"
+                }
+
+
+
+            ]
+        },
+        {
+            "title": "Dusk",
+            "thumb": "/albums/0Je2raJQhiEdoFfHJtagny.jpg",
+            "artist": "Mina",
+            "year": "2025",
+            "genre": "Alternative",
+            "links": [
+                {
+                    "type": "spotify",
+                    "url": "https://open.spotify.com/album/0Je2raJQhiEdoFfHJtagny"
+                }
+            ]
+        }
+    ]
+}
