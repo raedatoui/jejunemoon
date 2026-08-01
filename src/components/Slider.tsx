@@ -17,6 +17,17 @@ const SLIDES: Slide[] = parsedData.projects.map((project, index) => ({
     id: String(index + 1),
 }));
 
+const PLATFORM_ICONS: Record<string, string> = {
+    Spotify: '/icons/spotify_without_text.png',
+    'Apple Music': '/icons/applemusic_without_text.png',
+    iTunes: '/icons/itunes_without_text.png',
+    Deezer: '/icons/deezer_without_text.png',
+    'Amazon Music': '/icons/amazon_without_text_new_branding.png',
+    YouTube: '/icons/youtube_without_text.png',
+    SoundCloud: '/icons/soundcloud_without_text.png',
+    Tidal: '/icons/tidal_without_text.png',
+};
+
 // Sub-component to handle flip state and animation
 function FlipCard({
     slide,
@@ -24,15 +35,17 @@ function FlipCard({
     variants,
     custom,
     onDragEnd,
+    isFlipped,
+    onToggleFlip,
 }: {
     slide: Slide;
     dragControls: DragControls;
     variants: Variants;
     custom: number;
     onDragEnd: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
+    isFlipped: boolean;
+    onToggleFlip: () => void;
 }) {
-    const [isFlipped, setIsFlipped] = useState(false);
-
     return (
         <motion.div
             custom={custom}
@@ -51,7 +64,10 @@ function FlipCard({
             dragElastic={1}
             onDragEnd={onDragEnd}
             className="absolute w-[calc(100%-4rem)] aspect-square md:w-[500px] md:h-[500px] cursor-pointer perspective-1000"
-            onTap={() => setIsFlipped(!isFlipped)}
+            onTap={(e) => {
+                if ((e.target as HTMLElement).closest('a, button')) return;
+                onToggleFlip();
+            }}
         >
             <motion.div
                 className="w-full h-full relative preserve-3d"
@@ -66,14 +82,43 @@ function FlipCard({
                 )}
 
                 {/* Back Face - Metadata */}
-                <div className="absolute inset-0 backface-hidden shadow-2xl bg-[#fef7d4] text-stone-900 rotate-y-180 flex items-center justify-center p-8 border-2 border-black">
+                <div className="absolute inset-0 backface-hidden shadow-2xl bg-[#fef7d4] text-stone-900 rotate-y-180 flex flex-col items-center justify-center p-6 md:p-8 border-2 border-black overflow-hidden">
                     <div className="text-center select-none">
-                        <h2 className="font-header text-3xl md:text-5xl mb-4 leading-tight">{slide.title}</h2>
-                        <p className="font-body text-xl md:text-3xl mb-4 font-bold">{slide.artist}</p>
-                        <div className="text-sm md:text-base opacity-70 font-body uppercase tracking-[0.2em] border-t border-stone-400 pt-4 mt-4 inline-block">
+                        <h2 className="font-header text-2xl md:text-4xl leading-tight">{slide.title}</h2>
+                        <p className="font-body text-lg md:text-2xl font-bold">{slide.artist}</p>
+                        <div className="text-xs md:text-sm opacity-70 font-body uppercase tracking-[0.2em] mt-2">
                             {slide.genre} • {slide.year}
                         </div>
                     </div>
+                    {slide.links.length > 0 && (
+                        <ul
+                            className="absolute left-0 right-0 bottom-6 md:bottom-8 px-6 flex flex-wrap items-center justify-center gap-3"
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            {slide.links.map((link) => {
+                                const icon = PLATFORM_ICONS[link.platform];
+                                return (
+                                    <li key={link.url}>
+                                        <a
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title={link.platform}
+                                            aria-label={link.platform}
+                                            className="block w-7 h-7 md:w-8 md:h-8 opacity-80 hover:opacity-100 hover:scale-110 transition"
+                                        >
+                                            {icon ? (
+                                                <img src={icon} alt={link.platform} className="w-full h-full object-contain" />
+                                            ) : (
+                                                <span className="text-[10px] uppercase">{link.platform}</span>
+                                            )}
+                                        </a>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
                 </div>
             </motion.div>
         </motion.div>
@@ -82,21 +127,24 @@ function FlipCard({
 
 export function Slider() {
     const [[page, direction], setPage] = useState([0, 0]);
+    const [isFlipped, setIsFlipped] = useState(false);
     const dragControls = useDragControls();
 
     // Wrap the index using modulo for circular behavior
     const currentIndex = ((page % SLIDES.length) + SLIDES.length) % SLIDES.length;
 
     const paginate = useCallback((newDirection: number) => {
+        setIsFlipped(false);
         setPage(([prevPage]) => [prevPage + newDirection, newDirection]);
     }, []);
 
     useEffect(() => {
+        if (isFlipped) return;
         const timer = setInterval(() => {
             paginate(1);
         }, 3800);
         return () => clearInterval(timer);
-    }, [paginate]);
+    }, [paginate, isFlipped]);
 
     const currentSlide = SLIDES[currentIndex];
 
@@ -149,6 +197,8 @@ export function Slider() {
                         variants={variants}
                         custom={direction}
                         onDragEnd={handleDragEnd}
+                        isFlipped={isFlipped}
+                        onToggleFlip={() => setIsFlipped((prev) => !prev)}
                     />
                 </AnimatePresence>
             </div>

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const LinkSchema = z.object({
-    type: z.string(),
-    url: z.string(),
+    platform: z.string(),
+    url: z.string().url(),
 });
 
 export const ProjectSchema = z.object({
