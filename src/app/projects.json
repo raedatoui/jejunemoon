@@ -5,9 +5,14 @@
             "thumb": "/albums/3EljouHoyrBk6jDo6DLzZ4.jpg",
             "artist": "Kenneth Kirschner",
             "year": "2025",
+            "releaseDate": "2025-10-31",
+            "format": "Album",
             "genre": "Contemporary Classical",
             "links": [
-                { "platform": "Spotify", "url": "https://open.spotify.com/album/3EljouHoyrBk6jDo6DLzZ4" },
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/3EljouHoyrBk6jDo6DLzZ4"
+                },
                 {
                     "platform": "Apple Music",
                     "url": "https://geo.music.apple.com/us/album/july-19-2024/1848171396?app=music&ls=1&ct=FFM_8f189e5214565f3d5cc887c56643b1ee&at=1001lwQy"
@@ -16,7 +21,10 @@
                     "platform": "iTunes",
                     "url": "https://geo.itunes.apple.com/us/album/july-19-2024/1848171396?app=itunes&ls=1&ct=FFM_0ad8da0802f24bff9e99fa8851c10f25&at=1001lwQy"
                 },
-                { "platform": "Deezer", "url": "https://www.deezer.com/album/843173942" },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/843173942"
+                },
                 {
                     "platform": "Amazon Music",
                     "url": "https://music.amazon.com/albums/B0FXHGRJYL?ref=dm_ff_amazonmusic_3p&tag=featurefm-20"
@@ -25,8 +33,14 @@
                     "platform": "YouTube",
                     "url": "https://www.youtube.com/playlist?list=OLAK5uy_lNxWZ-sWNQ9XTFMgvF6gXfbQQ5ldWmaJw"
                 },
-                { "platform": "SoundCloud", "url": "https://soundcloud.com/kennethkirschnerofficial/sets/july-19-2024-1" },
-                { "platform": "Tidal", "url": "https://www.tidal.com/album/468888703" }
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/kennethkirschnerofficial/sets/july-19-2024-1"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://www.tidal.com/album/468888703"
+                }
             ]
         },
         {
@@ -34,9 +48,14 @@
             "thumb": "/albums/it-stays.jpg",
             "artist": "Ludabuddha, Mina",
             "year": "2026",
+            "releaseDate": "2026-01-20",
+            "format": "Single",
             "genre": "Alternative",
             "links": [
-                { "platform": "Spotify", "url": "https://open.spotify.com/album/4fZ76uygI3J9GBFkAUyYC9" },
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/4fZ76uygI3J9GBFkAUyYC9"
+                },
                 {
                     "platform": "Apple Music",
                     "url": "https://geo.music.apple.com/us/album/it-stays-single/1866553126?app=music&ls=1&ct=FFM_b146e9d4bf5083d61d936b36186b7e5d&at=1001lwQy"
@@ -45,7 +64,10 @@
                     "platform": "iTunes",
                     "url": "https://geo.itunes.apple.com/us/album/it-stays-single/1866553126?app=itunes&ls=1&ct=FFM_dfec1522eaaf7e9a4484228651f99343&at=1001lwQy"
                 },
-                { "platform": "Deezer", "url": "https://www.deezer.com/album/891043122" },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/891043122"
+                },
                 {
                     "platform": "Amazon Music",
                     "url": "https://music.amazon.com/albums/B0GF28V1Y2?ref=dm_ff_amazonmusic_3p&tag=featurefm-20"
@@ -54,8 +76,14 @@
                     "platform": "YouTube",
                     "url": "https://www.youtube.com/playlist?list=OLAK5uy_nSoyC9bFNIZOGNRbyp8eG2qcMQz0yHfm8"
                 },
-                { "platform": "SoundCloud", "url": "https://soundcloud.com/ludabuddha/it-stays-1" },
-                { "platform": "Tidal", "url": "https://www.tidal.com/album/487076563" }
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/ludabuddha/it-stays-1"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://www.tidal.com/album/487076563"
+                }
             ]
         },
         {
@@ -63,19 +91,42 @@
             "thumb": "/albums/1tR02Dmgw8WzDi2fd6ZUbU.jpg",
             "artist": "Mina",
             "year": "2024",
+            "releaseDate": "2024-09-06",
+            "format": "EP",
             "genre": "Alternative",
             "links": [
-                { "platform": "Spotify", "url": "https://open.spotify.com/album/1tR02Dmgw8WzDi2fd6ZUbU" },
-                { "platform": "Apple Music", "url": "https://geo.music.apple.com/us/album/disobey-ep/1758542203" },
-                { "platform": "iTunes", "url": "https://geo.itunes.apple.com/us/album/disobey-ep/1758542203" },
-                { "platform": "Deezer", "url": "https://www.deezer.com/album/618369931" },
-                { "platform": "Amazon Music", "url": "https://music.amazon.com/albums/B0D9R6S32N" },
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/1tR02Dmgw8WzDi2fd6ZUbU"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://geo.music.apple.com/us/album/disobey-ep/1758542203"
+                },
+                {
+                    "platform": "iTunes",
+                    "url": "https://geo.itunes.apple.com/us/album/disobey-ep/1758542203"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/618369931"
+                },
+                {
+                    "platform": "Amazon Music",
+                    "url": "https://music.amazon.com/albums/B0D9R6S32N"
+                },
                 {
                     "platform": "YouTube",
                     "url": "https://www.youtube.com/watch?v=Uz6H7zqdQLM&list=OLAK5uy_myizT72S6lMS9V2gbXiNf66ALMSMYH6pk"
                 },
-                { "platform": "SoundCloud", "url": "https://soundcloud.com/listentomina/sets/disobey-ep" },
-                { "platform": "Tidal", "url": "https://tidal.com/browse/album/376224095" }
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/listentomina/sets/disobey-ep"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://tidal.com/browse/album/376224095"
+                }
             ]
         },
         {
@@ -83,9 +134,14 @@
             "thumb": "/albums/0Je2raJQhiEdoFfHJtagny.jpg",
             "artist": "Mina",
             "year": "2025",
+            "releaseDate": "2025-11-06",
+            "format": "Single",
             "genre": "Alternative",
             "links": [
-                { "platform": "Spotify", "url": "https://open.spotify.com/album/0Je2raJQhiEdoFfHJtagny" },
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/0Je2raJQhiEdoFfHJtagny"
+                },
                 {
                     "platform": "Apple Music",
                     "url": "https://geo.music.apple.com/us/album/dusk-single/1848182630?app=music&ls=1&ct=FFM_c71d942a4062cb8da78332dd8a9b0adb&at=1001lwQy"
@@ -94,13 +150,22 @@
                     "platform": "iTunes",
                     "url": "https://geo.itunes.apple.com/us/album/dusk-single/1848182630?app=itunes&ls=1&ct=FFM_80355016a054799b6b9b262378045095&at=1001lwQy"
                 },
-                { "platform": "Deezer", "url": "https://www.deezer.com/album/843209682" },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/843209682"
+                },
                 {
                     "platform": "YouTube",
                     "url": "https://www.youtube.com/playlist?list=OLAK5uy_m4io5OGPVI11IfDTNqzi8rETEUlKm6Unk"
                 },
-                { "platform": "SoundCloud", "url": "https://soundcloud.com/listentomina/dusk-1" },
-                { "platform": "Tidal", "url": "https://www.tidal.com/album/468904620" }
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/listentomina/dusk-1"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://www.tidal.com/album/468904620"
+                }
             ]
         },
         {
@@ -108,16 +173,61 @@
             "thumb": "/albums/may26.jpg",
             "artist": "Kenneth Kirschner",
             "year": "2026",
+            "releaseDate": "2026-07-24",
+            "format": "Album",
             "genre": "Contemporary Classical",
             "links": [
-                { "platform": "Spotify", "url": "https://open.spotify.com/album/6VHnXYaRkmLypndQb0vJnz" },
-                { "platform": "Apple Music", "url": "https://itunes.apple.com/album/id/6771298055" },
-                { "platform": "Deezer", "url": "https://www.deezer.com/album/987089241" },
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/6VHnXYaRkmLypndQb0vJnz"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://itunes.apple.com/album/id/6771298055"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/987089241"
+                },
                 {
                     "platform": "YouTube",
                     "url": "https://music.youtube.com/playlist?list=OLAK5uy_lmlkmbmJ9viztMk1qOYPsM1V8MoD7s6Eo"
                 },
-                { "platform": "SoundCloud", "url": "https://soundcloud.com/kennethkirschnerofficial/sets/may-26-2025-1" }
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/kennethkirschnerofficial/sets/may-26-2025-1"
+                }
+            ]
+        },
+        {
+            "title": "The Ephemeral Trail",
+            "thumb": "/albums/6KC4Q8qznNnTok6fgj9R6g.jpg",
+            "artist": "Mina",
+            "year": "2026",
+            "releaseDate": "2026-08-14",
+            "format": "EP",
+            "genre": "Alternative",
+            "links": [
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/6KC4Q8qznNnTok6fgj9R6g"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://music.apple.com/us/album/the-ephemeral-trail-ep/6781722694"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/1008893441"
+                },
+                {
+                    "platform": "YouTube",
+                    "url": "https://www.youtube.com/playlist?list=OLAK5uy_kgLmURGPAUTvYFZ3Ou8cgM1D9bPc8aFjk"
+                },
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/listentomina/sets/the-ephemeral-trail-1"
+                }
             ]
         }
     ]

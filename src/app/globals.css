@@ -3,6 +3,8 @@
 @theme {
     --font-header: var(--font-museo-moderno);
     --font-body: var(--font-lato);
+    --font-sleeve: var(--font-instrument-sans);
+    --font-credit: var(--font-space-mono);
 }
 
 body {
@@ -41,4 +43,46 @@ h6 {
 
 @utility rotate-y-180 {
     transform: rotateY(180deg);
+}
+
+/* Jejune Moon home palette, sampled from the logo: the moon disc, its
+   wordmark, its crater shadows. Scoped so the rest of the site is untouched. */
+.jm {
+    --paper: #ede4cf;
+    --lift: #f7f1e2;
+    --ink: #100f0d;
+    --ink-soft: #6b6353;
+    --rule: #c6b899;
+    --ochre: #b8792a;
+}
+
+/* Paper tooth, so the cream reads as stock rather than as a flat fill. */
+.jm-grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.055;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The emblem's box. Held as a variable so the wordmark inside it can be
+   sized against the burst rather than against the viewport. */
+.jm-burst {
+    --burst: min(88vw, 360px);
+    width: var(--burst);
+}
+
+@media (min-width: 768px) {
+    .jm-burst {
+        --burst: 580px;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
 }

@@ -10,6 +10,8 @@ export const ProjectSchema = z.object({
     thumb: z.string(),
     artist: z.string(),
     year: z.string(),
+    releaseDate: z.string().optional(),
+    format: z.string().optional(),
     genre: z.string(),
     links: z.array(LinkSchema),
 });
