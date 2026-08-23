@@ -41,7 +41,8 @@
                     "platform": "Tidal",
                     "url": "https://www.tidal.com/album/468888703"
                 }
-            ]
+            ],
+            "snippet": "/snippets/july-19-2024.m4a"
         },
         {
             "title": "It Stays",
@@ -84,7 +85,8 @@
                     "platform": "Tidal",
                     "url": "https://www.tidal.com/album/487076563"
                 }
-            ]
+            ],
+            "snippet": "/snippets/it-stays.m4a"
         },
         {
             "title": "Disobey",
@@ -127,7 +129,8 @@
                     "platform": "Tidal",
                     "url": "https://tidal.com/browse/album/376224095"
                 }
-            ]
+            ],
+            "snippet": "/snippets/disobey.m4a"
         },
         {
             "title": "Dusk",
@@ -166,7 +169,8 @@
                     "platform": "Tidal",
                     "url": "https://www.tidal.com/album/468904620"
                 }
-            ]
+            ],
+            "snippet": "/snippets/dusk.m4a"
         },
         {
             "title": "May 26, 2025",
@@ -197,7 +201,8 @@
                     "platform": "SoundCloud",
                     "url": "https://soundcloud.com/kennethkirschnerofficial/sets/may-26-2025-1"
                 }
-            ]
+            ],
+            "snippet": "/snippets/may-26-2025.m4a"
         },
         {
             "title": "The Ephemeral Trail",
@@ -228,7 +233,8 @@
                     "platform": "SoundCloud",
                     "url": "https://soundcloud.com/listentomina/sets/the-ephemeral-trail-1"
                 }
-            ]
+            ],
+            "snippet": "/snippets/the-ephemeral-trail.m4a"
         }
     ]
 }

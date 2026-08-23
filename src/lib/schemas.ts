@@ -13,6 +13,7 @@ export const ProjectSchema = z.object({
     releaseDate: z.string().optional(),
     format: z.string().optional(),
     genre: z.string(),
+    snippet: z.string().optional(),
     links: z.array(LinkSchema),
 });
 

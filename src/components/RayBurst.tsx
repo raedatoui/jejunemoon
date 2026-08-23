@@ -2,6 +2,9 @@
 
 import { type RefObject, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { rotationAt } from '@/lib/playhead';
+import { playSnippet, pauseSnippet } from '@/lib/snippets';
+import { cn } from '@/lib/utils';
 
 /**
  * The label's emblem, in WebGL2. The moon turns, and the beacon fixed on its
@@ -9,9 +12,16 @@ import { motion, useReducedMotion } from 'framer-motion';
  * twelve o'clock. Every pass re-deals a bar's length, weight and dash, so no
  * two revolutions read the same. Hover or focus an arc to light its release.
  *
+ * Press the wordmark and the beacon stops being decoration: the arc it is
+ * crossing is the record you hear, and it hands over as it passes into the
+ * next. How fast it turns is set from the page, one record at a time.
+ *
  * The canvas is decorative. The links live in the transparent SVG above it,
  * so the catalog stays reachable by keyboard and screen reader either way.
  */
+
+// The angle a frozen emblem sits at, for readers who asked for less motion.
+const STILL_ROT = 0.25;
 
 // How much of the .jm-burst box the emblem spans. Raise it to grow the moon
 // and its bars; the wordmark is sized off --burst, so it does not follow.
@@ -33,6 +43,7 @@ uniform float iScale;        // burst diameter in device pixels
 uniform float iSectors;      // one arc per release
 uniform float iActive;       // hovered/focused arc, -1 for none
 uniform float iPulse;        // 1 = kick pulse + wavefront rings, 0 = calm
+uniform float iRot;          // moon rotation, in turns — the playhead itself
 
 out vec4 fragColor;
 
@@ -55,9 +66,6 @@ const float R_IN   = 0.34;
 const vec2  IMG_C  = vec2(0.498, 0.485);
 const float IMG_R  = 0.41;
 
-// One revolution of the moon, in seconds. The sweep IS this rotation: a bar
-// fires the moment the beacon passes it, so speed and sweep share one knob.
-const float SWEEP  = 3.6;
 
 // The design's own scale. The canvas is full-bleed, so its size no longer sets
 // how big the burst is — iScale does, and FIT is what the burst spans of it.
@@ -104,7 +112,7 @@ vec3 drawRay(float sector, float i, float r, float ang01, float t, float k, floa
 
     float L = level(idx, seed, t, k);
 
-    float sweepT = t / SWEEP - idx / total;
+    float sweepT = iRot - idx / total;
     float phN = fract(sweepT) * total;                 // bars behind the beacon
     float sb = phN < total * 0.5 ? phN : phN - total;  // signed: < 0 = approaching
 
@@ -159,7 +167,7 @@ void main() {
 
     // Moon rotation, clockwise. pl is the moon-local frame: anything drawn
     // from pl rides the spin.
-    float rot = t / SWEEP;
+    float rot = iRot;
     float th = 2.0 * PI * fract(rot);
     float cth = cos(th);
     float sth = sin(th);
@@ -295,6 +303,7 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
         const uSectors = gl.getUniformLocation(prog, 'iSectors');
         const uActive = gl.getUniformLocation(prog, 'iActive');
         const uPulse = gl.getUniformLocation(prog, 'iPulse');
+        const uRot = gl.getUniformLocation(prog, 'iRot');
         gl.uniform1i(gl.getUniformLocation(prog, 'iChannel0'), 0);
 
         // A paper-coloured pixel stands in until the artwork decodes, so the
@@ -315,13 +324,13 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
             gl.generateMipmap(gl.TEXTURE_2D);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-            if (still) draw(0.9);
+            if (still) draw(0.9, STILL_ROT);
         };
         img.src = '/jejune-moon.png';
 
         let scale = 1;
 
-        function draw(t: number) {
+        function draw(t: number, rot: number) {
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.uniform2f(uRes, canvas.width, canvas.height);
             gl.uniform1f(uScale, scale);
@@ -329,6 +338,7 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
             gl.uniform1f(uSectors, sectors);
             gl.uniform1f(uActive, activeRef.current ?? -1);
             gl.uniform1f(uPulse, pulseRef.current ? 1 : 0);
+            gl.uniform1f(uRot, rot);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
 
@@ -339,7 +349,7 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
             canvas.height = Math.round(height * dpr);
             scale = (canvas.parentElement?.clientWidth ?? width) * dpr;
             // A resize wipes the buffer, so a frozen frame has to be redrawn.
-            if (still) draw(0.9);
+            if (still) draw(0.9, STILL_ROT);
         });
         ro.observe(canvas);
 
@@ -349,7 +359,8 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
         let visible = false;
         const t0 = performance.now();
         const loop = () => {
-            draw((performance.now() - t0) / 1000);
+            const now = performance.now();
+            draw((now - t0) / 1000, rotationAt(now));
             raf = requestAnimationFrame(loop);
         };
         const io = new IntersectionObserver(([entry]) => {
@@ -382,16 +393,20 @@ export function RayBurst({
     items,
     active,
     onActive,
-    pulse = false,
+    playhead,
+    onTogglePlayhead,
 }: {
-    items: { id: string; title: string; artist: string }[];
+    items: { id: string; title: string; artist: string; snippet?: string }[];
     active: number | null;
     onActive: (index: number | null) => void;
-    pulse?: boolean;
+    playhead: boolean;
+    onTogglePlayhead: () => void;
 }) {
     const reduceMotion = useReducedMotion();
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    useMoonShader(canvasRef, items.length, active, pulse, reduceMotion === true);
+    // The kick and the wavefronts were always the emblem's playing face; now
+    // there is something actually playing to give them to.
+    useMoonShader(canvasRef, items.length, active, playhead, reduceMotion === true);
 
     const span = 360 / items.length;
     const rHit = [round(500 * FIT * 0.32), round(500 * FIT * 0.83)] as const;
@@ -412,27 +427,45 @@ export function RayBurst({
                 className="pointer-events-none absolute top-1/2 left-1/2 z-0 h-screen w-screen -translate-x-1/2 -translate-y-1/2"
             />
 
-            <div
-                className="font-header pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase select-none"
+            {/* The wordmark is the transport. Press it and the beacon stops
+                being decoration: whichever arc it is crossing is the record
+                you hear, and it hands over to the next one as it passes. */}
+            <button
+                type="button"
+                onClick={onTogglePlayhead}
+                aria-pressed={playhead}
+                aria-label={playhead ? 'Stop the moon playing the catalog' : 'Let the moon play the catalog'}
+                className={cn(
+                    'font-header absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase transition-colors duration-700 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[var(--ink)]',
+                    playhead && 'text-[var(--ochre)]'
+                )}
                 style={{ fontSize: 'calc(var(--burst) * 0.094)' }}
             >
                 JeJune
                 <br />
                 Moon
-            </div>
+            </button>
 
-            <svg viewBox="-500 -500 1000 1000" className="absolute inset-0 z-10 h-full w-full overflow-visible">
+            {/* The svg box would swallow every click across the emblem, wordmark
+                included, so the hits are left to the wedges themselves. */}
+            <svg viewBox="-500 -500 1000 1000" className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
                 <title>Jejune Moon catalog</title>
                 {items.map((item, index) => (
                     <a
                         key={item.id}
                         href={`#${item.id}`}
                         aria-label={`${item.title} by ${item.artist}`}
-                        onMouseEnter={() => onActive(index)}
-                        onMouseLeave={() => onActive(null)}
+                        onMouseEnter={() => {
+                            onActive(index);
+                            if (item.snippet) playSnippet(item.snippet);
+                        }}
+                        onMouseLeave={() => {
+                            onActive(null);
+                            pauseSnippet();
+                        }}
                         onFocus={() => onActive(index)}
                         onBlur={() => onActive(null)}
-                        className="outline-none"
+                        className="pointer-events-auto outline-none"
                     >
                         <path d={wedge(-90 + index * span, -90 + (index + 1) * span, rHit[0], rHit[1])} fill="transparent" />
                     </a>

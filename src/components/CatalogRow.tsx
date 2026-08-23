@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/schemas';
+import { playSnippet, pauseSnippet } from '@/lib/snippets';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -66,6 +67,8 @@ export function CatalogRow({
                                 flipped && 'pointer-events-none'
                             )}
                             aria-hidden={flipped}
+                            onMouseEnter={() => release.snippet && !flipped && playSnippet(release.snippet)}
+                            onMouseLeave={pauseSnippet}
                         >
                             {release.thumb.startsWith('/') ? (
                                 <img src={release.thumb} alt={`${release.title} cover art`} className="h-full w-full object-cover" />
@@ -74,7 +77,10 @@ export function CatalogRow({
                             )}
                             <button
                                 type="button"
-                                onClick={() => setFlipped(true)}
+                                onClick={() => {
+                                    pauseSnippet();
+                                    setFlipped(true);
+                                }}
                                 tabIndex={flipped ? -1 : 0}
                                 className="absolute inset-0 flex cursor-pointer items-end justify-end p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
                             >
