@@ -14,6 +14,7 @@ export const ProjectSchema = z.object({
     format: z.string().optional(),
     genre: z.string(),
     snippet: z.string().optional(),
+    snippets: z.array(z.string()).optional(),
     links: z.array(LinkSchema),
 });
 

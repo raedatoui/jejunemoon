@@ -1,9 +1,9 @@
 'use client';
 
-import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
+import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { dragRotation, grabRotation, releaseRotation, rotationAt, setHeld } from '@/lib/playhead';
-import { playSnippet, pauseSnippet } from '@/lib/snippets';
+import { playSnippet, pauseSnippet, preloadSnippets } from '@/lib/snippets';
 import { cn } from '@/lib/utils';
 
 /**
@@ -38,6 +38,17 @@ const TAP_MS = 350;
 // the surface you can take hold of to turn it.
 const R_DISC = 0.295;
 
+// Bars per arc, and the blank left at each end of a sector so one record's bars
+// do not run into the next. The shader draws to these; the page reads them back
+// to tell which bar — and so which track — a point on the ring belongs to.
+const RAYS = 7;
+const GAP = 0.0667;
+
+// Seconds for a bar to close all but 1/e of the gap to what has actually landed.
+// Snippets are small and often already in cache, and a bar that jumped straight
+// to full length would never be seen to grow at all.
+const LOAD_TAU = 0.45;
+
 const VERT = `#version 300 es
 void main() {
     vec2 v = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
@@ -50,6 +61,7 @@ precision highp float;
 uniform vec2 iResolution;
 uniform float iTime;
 uniform sampler2D iChannel0; // the artwork disc
+uniform sampler2D iChannel1; // one texel per bar: how much of its snippet has landed
 uniform float iScale;        // burst diameter in device pixels
 uniform float iSectors;      // one arc per release
 uniform float iActive;       // hovered/focused arc, -1 for none
@@ -67,8 +79,8 @@ const vec3 INKSOFT = vec3(0.420, 0.388, 0.325); // #6b6353
 const vec3 RULE    = vec3(0.776, 0.722, 0.600); // #c6b899
 const vec3 OCHRE   = vec3(0.722, 0.475, 0.165); // #b8792a
 
-const float RAYS   = 7.0;      // bars per arc
-const float GAP    = 0.0667;   // 4deg of a 60deg sector
+const float RAYS   = ${RAYS}.0;      // bars per arc
+const float GAP    = ${GAP};   // 4deg of a 60deg sector
 const float R_DISC = ${R_DISC.toFixed(3)};
 const float R_IN   = 0.34;
 
@@ -119,6 +131,14 @@ vec3 drawRay(float sector, float i, float r, float ang01, float t, float k, floa
     float seed = sector * 17.0 + i;
     float idx = sector * RAYS + i;
 
+    // How much of this bar's snippet has arrived. Seven bars to an arc and up to
+    // four tracks to a release, so each bar stands for one of them and a group
+    // of bars grows together as the track under them lands.
+    float fill = texelFetch(iChannel1, ivec2(int(clamp(idx, 0.0, total - 1.0)), 0), 0).r;
+    // Under a hair of that the bar is not there at all, rather than a speck
+    // sitting where it will one day begin.
+    float lit = smoothstep(0.0, 0.04, fill);
+
     // Centreline angle in revolutions from twelve o'clock
     float rayA = (sector + GAP + i * (1.0 - 2.0 * GAP) / (RAYS - 1.0)) / iSectors;
     float dA = ang01 - rayA;
@@ -150,7 +170,7 @@ vec3 drawRay(float sector, float i, float r, float ang01, float t, float k, floa
 
     float start = R_IN + mix(hash(seed + genP + 3.0), hash(seed + gen + 3.0), xf) * 0.03;
     float len = (0.15 + mix(hash(seed + genP), hash(seed + gen), xf) * 0.20) * (0.45 + 0.30 * pulse + 0.35 * L + 0.15 * act);
-    float rEnd = start + len;
+    float rEnd = start + len * fill;
 
     float dRad = max(start - r, r - rEnd);
     float d = length(vec2(dPerp, max(dRad, 0.0)));
@@ -161,9 +181,9 @@ vec3 drawRay(float sector, float i, float r, float ang01, float t, float k, floa
     // Dashes: both generations' patterns, crossfaded with the same morph
     m *= mix(dashMask(r - start, seed + genP, px), dashMask(r - start, seed + gen, px), xf);
 
-    float alpha = m * clamp(0.30 + 0.55 * pulse + 0.35 * L + 0.35 * act, 0.0, 1.0);
+    float alpha = m * clamp(0.30 + 0.55 * pulse + 0.35 * L + 0.35 * act, 0.0, 1.0) * lit;
     float och = clamp(0.55 * pulse + act, 0.0, 1.0);
-    float halo = exp(-d / 0.035) * (0.5 * pulse + 0.35 * act) * step(start - 0.05, r);
+    float halo = exp(-d / 0.035) * (0.5 * pulse + 0.35 * act) * step(start - 0.05, r) * lit;
     return vec3(alpha, och, halo);
 }
 
@@ -272,11 +292,48 @@ function wedge(a0: number, a1: number, r0: number, r1: number) {
     return `M${x0} ${y0}A${r0} ${r0} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r1} ${r1} 0 0 0 ${x3} ${y3}Z`;
 }
 
+type Sounded = { snippet?: string; snippets?: string[] };
+
+// Every track we hold for a release, falling back to the single snippet the
+// catalog carried before there were four of them.
+const sourcesOf = (item: Sounded) => (item.snippets?.length ? item.snippets : item.snippet ? [item.snippet] : []);
+
+// Which of a release's tracks a bar belongs to. Seven bars and up to four
+// tracks, so they go two apiece with the last taking what is left — and all
+// seven to the one track where a release is a single.
+const trackOf = (bar: number, count: number) => Math.floor((bar * count) / RAYS);
+
+// Which snippet each bar stands for, indexed the way the shader indexes them:
+// sector * RAYS + ray. A group of bars fills together as the track under it
+// lands. A release we hold nothing for is left null, and its arc is drawn whole
+// from the start.
+function barSources(items: Sounded[]) {
+    return items.flatMap((item) => {
+        const srcs = sourcesOf(item);
+        return Array.from({ length: RAYS }, (_, i) => (srcs.length ? srcs[trackOf(i, srcs.length)] : null));
+    });
+}
+
+// What is under a given point on the ring: the record, and the one of its tracks
+// whose bars are there. Turns are measured clockwise from twelve, the same as
+// the rotation itself — and the arcs stand still while the moon turns beneath
+// them, so this reads the beacon's angle and a pointer's alike.
+//
+// The bar is picked the way the shader picks which bar owns a pixel, so what is
+// heard hands over exactly as the beacon reaches the next group of bars.
+export function beaconAt<T extends Sounded>(items: T[], turns: number) {
+    const place = (turns - Math.floor(turns)) * items.length;
+    const sector = Math.min(Math.floor(place), items.length - 1);
+    const srcs = sourcesOf(items[sector]);
+    const bar = Math.max(0, Math.min(RAYS - 1, Math.round(((place - sector - GAP) / (1 - 2 * GAP)) * (RAYS - 1))));
+    return { sector, snippet: srcs.length ? srcs[trackOf(bar, srcs.length)] : undefined };
+}
+
 // Where a hand is on the platter, in turns clockwise from twelve — the same
 // measure the rotation itself is in, so the moon follows the hand one to one.
 // Measured against the emblem's box rather than whatever surface was grabbed,
 // since the wordmark takes a hand as readily as the face around it.
-const angleOf = (event: ReactPointerEvent<Element>, box: DOMRect) => {
+const angleOf = (event: { clientX: number; clientY: number }, box: DOMRect) => {
     const x = event.clientX - (box.left + box.width / 2);
     const y = event.clientY - (box.top + box.height / 2);
     return Math.atan2(x, -y) / (2 * Math.PI);
@@ -295,7 +352,14 @@ function compile(gl: WebGL2RenderingContext, type: number, src: string) {
     return shader;
 }
 
-function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: number, active: number | null, pulse: boolean, still: boolean) {
+function useMoonShader(
+    canvasRef: RefObject<HTMLCanvasElement | null>,
+    sectors: number,
+    active: number | null,
+    pulse: boolean,
+    still: boolean,
+    fillRef: RefObject<Float32Array>
+) {
     // The draw loop reads these through refs, so a hover never restarts WebGL.
     const activeRef = useRef(active);
     const pulseRef = useRef(pulse);
@@ -345,8 +409,47 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
+        // One texel per bar, holding how much of that bar's snippet has landed.
+        // A texture rather than a uniform array so the count can follow the
+        // catalog without the shader having to be rebuilt around it.
+        const total = sectors * RAYS;
+        // Readers who asked for less motion get their arcs whole: an emblem that
+        // grows itself in is the motion they turned down.
+        const shown = new Float32Array(total).fill(still ? 1 : 0);
+        const bytes = new Uint8Array(total);
+        const loadTex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, loadTex);
+        // One byte a bar, and the row is as wide as the catalog is long — which
+        // is not a multiple of four, so the default row alignment would misread
+        // it.
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, total, 1, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+        gl.uniform1i(gl.getUniformLocation(prog, 'iChannel1'), 1);
+
+        // The bars ease up to what has arrived rather than snapping to it, so a
+        // snippet that was already in cache is still seen to land.
+        function uploadFill(dt: number) {
+            const target = fillRef.current;
+            const k = 1 - Math.exp(-dt / LOAD_TAU);
+            for (let i = 0; i < total; i++) {
+                if (!still && i < target.length) shown[i] += (target[i] - shown[i]) * k;
+                bytes[i] = Math.round(Math.max(0, Math.min(1, shown[i])) * 255);
+            }
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, loadTex);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, total, 1, gl.RED, gl.UNSIGNED_BYTE, bytes);
+        }
+        uploadFill(0);
+
         const img = new Image();
         img.onload = () => {
+            // Whatever ran last left the bar texture's unit selected.
+            gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, tex);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
@@ -386,8 +489,13 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
         let raf = 0;
         let visible = false;
         const t0 = performance.now();
+        let last = t0;
         const loop = () => {
             const now = performance.now();
+            // Clamped, so an emblem coming back from off screen is seen to grow
+            // its bars rather than finding them already grown.
+            uploadFill(Math.min((now - last) / 1000, 0.1));
+            last = now;
             draw((now - t0) / 1000, rotationAt(now));
             raf = requestAnimationFrame(loop);
         };
@@ -409,12 +517,13 @@ function useMoonShader(canvasRef: RefObject<HTMLCanvasElement | null>, sectors: 
             io.disconnect();
             img.onload = null;
             gl.deleteTexture(tex);
+            gl.deleteTexture(loadTex);
             gl.deleteProgram(prog);
             gl.deleteShader(vs);
             gl.deleteShader(fs);
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         };
-    }, [canvasRef, sectors, still]);
+    }, [canvasRef, sectors, still, fillRef]);
 }
 
 export function RayBurst({
@@ -425,7 +534,7 @@ export function RayBurst({
     onTogglePlayhead,
     onSpin,
 }: {
-    items: { id: string; title: string; artist: string; snippet?: string }[];
+    items: { id: string; title: string; artist: string; snippet?: string; snippets?: string[] }[];
     active: number | null;
     onActive: (index: number | null) => void;
     playhead: boolean;
@@ -442,9 +551,32 @@ export function RayBurst({
     // The emblem's own hover, kept apart from the active arc: the catalog sets
     // that one too, and a cover down the page is not a hand on these bars.
     const [hovered, setHovered] = useState<number | null>(null);
+    // Which track the pointer is over. A release's bars are dealt out among its
+    // tracks and the arcs stand still while the moon turns under them, so
+    // running along an arc runs through the record.
+    const [hoverSnippet, setHoverSnippet] = useState<string | undefined>(undefined);
+    // What each bar is waiting on, and how much of it has come. The shader reads
+    // the fills straight off the ref every frame, so a chunk of audio arriving
+    // never costs the page a render.
+    const bars = useMemo(() => barSources(items), [items]);
+    const fills = useMemo(() => Float32Array.from(bars, (src) => (src === null ? 1 : 0)), [bars]);
+    const fillRef = useRef(fills);
+    fillRef.current = fills;
     // The kick and the wavefronts were always the emblem's playing face; now
     // there is something actually playing to give them to.
-    useMoonShader(canvasRef, items.length, active, playhead, reduceMotion === true);
+    useMoonShader(canvasRef, items.length, active, playhead, reduceMotion === true, fillRef);
+
+    // The bars are what shows the loading, so the audio is asked for the moment
+    // the emblem is on the page rather than waiting its turn behind the artwork:
+    // an arc sitting at nothing reads as broken, not as patient.
+    useEffect(() => {
+        const srcs = [...new Set(bars.filter((src): src is string => src !== null))];
+        return preloadSnippets(srcs, (src, fraction) => {
+            for (let i = 0; i < bars.length; i++) {
+                if (bars[i] === src) fills[i] = fraction;
+            }
+        });
+    }, [bars, fills]);
 
     // A gesture does not always end on the emblem. The pointer can be let go
     // over another window, or the tab can lose focus mid-spin, and none of that
@@ -478,7 +610,7 @@ export function RayBurst({
     // sounds nor stops the moon.
     useEffect(() => {
         if (hovered === null || playhead) return;
-        const snippet = items[hovered]?.snippet;
+        const snippet = hoverSnippet;
         let landed = false;
         const tick = () => {
             const turns = rotationAt(performance.now());
@@ -499,7 +631,15 @@ export function RayBurst({
             setHeld(false, performance.now());
             if (snippet) pauseSnippet();
         };
-    }, [hovered, playhead, items]);
+    }, [hovered, hoverSnippet, playhead, items]);
+
+    // Where the pointer is on the ring, read the same way the beacon's own angle
+    // is: the arc it is over, and which of that record's tracks the bars there
+    // belong to.
+    const trackUnder = (event: { clientX: number; clientY: number }) => {
+        const box = burstRef.current?.getBoundingClientRect();
+        return box ? beaconAt(items, angleOf(event, box)).snippet : undefined;
+    };
 
     const span = 360 / items.length;
     const rHit = [round(500 * FIT * 0.32), round(500 * FIT * 0.83)] as const;
@@ -637,7 +777,7 @@ export function RayBurst({
                         key={item.id}
                         href={`#${item.id}`}
                         aria-label={`${item.title} by ${item.artist}`}
-                        onMouseEnter={() => {
+                        onMouseEnter={(event) => {
                             // While the transport is running the emblem is
                             // playing itself, and a hover is not allowed to take
                             // the record off it. Turning the moon by hand still
@@ -645,7 +785,15 @@ export function RayBurst({
                             // and a hand already turning it is not hovering.
                             if (playhead || grab.current) return;
                             setHovered(index);
+                            setHoverSnippet(trackUnder(event));
                             onActive(index);
+                        }}
+                        onMouseMove={(event) => {
+                            if (playhead || grab.current) return;
+                            const next = trackUnder(event);
+                            // Only a crossing into the next group of bars is
+                            // worth a render; the pixels between them are not.
+                            setHoverSnippet((current) => (current === next ? current : next));
                         }}
                         onMouseLeave={() => {
                             setHovered(null);

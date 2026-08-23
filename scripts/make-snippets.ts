@@ -2,18 +2,11 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-// Placeholder hover snippets: ten seconds from the middle of the first track.
-// Masters we hold locally are used where we have them, keyed by release title;
-// anything missing falls back to that release's 30-second Apple preview, which
-// is close enough until the label picks its own moments.
-const MASTERS: Record<string, string> = {
-    'July 19, 2024': '/Users/raed/play/jejunemoon/Releases/kirschner071924/kirschner071924_i.aif',
-    'May 26, 2025':
-        '/Users/raed/play/jejunemoon/Releases/Kenneth Kirschner - May 26- 2025/Kenneth Kirschner - May 26, 2025 - 01 May 26, 2025 – i..wav',
-    'It Stays': '/Users/raed/Downloads/Audio/It Stays Mix Master 12.9.25.wav',
-};
-
+// Placeholder hover snippets: ten seconds from the middle of a track's Apple
+// preview. Up to four tracks per release, so an EP has something other than its
+// opening bars to offer on a second pass; a single simply yields the one.
 const SNIPPET_SECONDS = 10;
+const MAX_TRACKS = 4;
 
 interface Link {
     platform: string;
@@ -24,7 +17,15 @@ interface Project {
     title: string;
     links: Link[];
     snippet?: string;
+    snippets?: string[];
     [key: string]: unknown;
+}
+
+interface Result {
+    wrapperType: string;
+    discNumber?: number;
+    trackNumber?: number;
+    previewUrl?: string;
 }
 
 // Same slug as the catalog anchors, so a snippet file is named after the record
@@ -48,11 +49,18 @@ function appleAlbumId(links: Link[]): string | null {
     return null;
 }
 
-async function previewUrl(albumId: string): Promise<string | null> {
-    const response = await fetch(`https://itunes.apple.com/lookup?id=${albumId}&entity=song&limit=1`);
+// The first few tracks of the record, in running order. Apple hands back the
+// album alongside its songs and not always in sequence, and Kenneth's long
+// pieces run to more movements than we want, so sort and take from the top.
+async function previewUrls(albumId: string): Promise<string[]> {
+    const response = await fetch(`https://itunes.apple.com/lookup?id=${albumId}&entity=song&limit=200`);
     if (!response.ok) throw new Error(`iTunes lookup failed for ${albumId}: ${response.status}`);
-    const data = (await response.json()) as { results: { wrapperType: string; previewUrl?: string }[] };
-    return data.results.find((result) => result.wrapperType === 'track')?.previewUrl ?? null;
+    const data = (await response.json()) as { results: Result[] };
+    return data.results
+        .filter((result): result is Result & { previewUrl: string } => result.wrapperType === 'track' && Boolean(result.previewUrl))
+        .sort((a, b) => (a.discNumber ?? 1) - (b.discNumber ?? 1) || (a.trackNumber ?? 0) - (b.trackNumber ?? 0))
+        .slice(0, MAX_TRACKS)
+        .map((track) => track.previewUrl);
 }
 
 function duration(source: string): number {
@@ -90,31 +98,34 @@ async function main() {
     fs.mkdirSync(snippetsDir, { recursive: true });
 
     for (const project of data.projects) {
-        const name = `${slug(project.title)}.m4a`;
         console.log(`\n${project.title}`);
 
-        let source = MASTERS[project.title];
-        if (source && fs.existsSync(source)) {
-            console.log(`  master: ${path.basename(source)}`);
-        } else {
-            const albumId = appleAlbumId(project.links);
-            if (!albumId) {
-                console.error('  no master and no Apple link — skipped');
-                continue;
-            }
-            const preview = await previewUrl(albumId);
-            if (!preview) {
-                console.error(`  no Apple preview for album ${albumId} — skipped`);
-                continue;
-            }
-            console.log(`  apple preview: album ${albumId}`);
-            source = preview;
+        const albumId = appleAlbumId(project.links);
+        if (!albumId) {
+            console.error('  no Apple link — skipped');
+            continue;
         }
 
-        const start = Math.max(0, duration(source) / 2 - SNIPPET_SECONDS / 2);
-        encode(source, start, path.join(snippetsDir, name));
-        project.snippet = `/snippets/${name}`;
-        console.log(`  wrote ${name} from ${start.toFixed(1)}s`);
+        const previews = await previewUrls(albumId);
+        if (previews.length === 0) {
+            console.error(`  no Apple previews for album ${albumId} — skipped`);
+            continue;
+        }
+        console.log(`  apple album ${albumId}: ${previews.length} of ${MAX_TRACKS} tracks`);
+
+        const snippets: string[] = [];
+        for (const [index, preview] of previews.entries()) {
+            const name = `${slug(project.title)}-${index + 1}.m4a`;
+            const start = Math.max(0, duration(preview) / 2 - SNIPPET_SECONDS / 2);
+            encode(preview, start, path.join(snippetsDir, name));
+            snippets.push(`/snippets/${name}`);
+            console.log(`  wrote ${name} from ${start.toFixed(1)}s`);
+        }
+
+        project.snippets = snippets;
+        // The hover still reaches for one snippet per release; the rest are here
+        // for whoever wants to make a second pass sound different.
+        project.snippet = snippets[0];
     }
 
     fs.writeFileSync(projectsPath, `${JSON.stringify(data, null, 4)}\n`);

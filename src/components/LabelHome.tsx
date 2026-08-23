@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import projectsData from '@/app/projects.json';
 import { rotationAt, setTurnSeconds } from '@/lib/playhead';
 import { ProjectsListSchema } from '@/lib/schemas';
-import { currentSnippet, pauseSnippet, playSnippet, prefetchSnippet } from '@/lib/snippets';
-import { RayBurst } from './RayBurst';
+import { currentSnippet, pauseSnippet, playSnippet } from '@/lib/snippets';
+import { beaconAt, RayBurst } from './RayBurst';
 import { CatalogRow } from './CatalogRow';
 
 // Newest first, by release date. Releases still missing a date fall back to
@@ -69,29 +69,32 @@ export function LabelHome() {
         setTurnSeconds(dwell * RELEASES.length, performance.now());
     }, [dwell]);
 
-    // The beacon's own angle decides what plays: whichever arc it is crossing is
-    // the record you hear, and crossing out of it hands over to the next. Polled
-    // against the rotation clock rather than driven by the draw loop, so the
-    // catalog keeps playing while the emblem is scrolled out of view.
+    // The beacon's own angle decides what plays, down to the bar: whichever arc
+    // it is crossing is the record you hear, and the bars of that arc are dealt
+    // out among the record's tracks, so a four-track release is heard through as
+    // the beacon goes across it rather than repeating its opening. Crossing out
+    // of the arc hands over to the next record. Polled against the rotation clock
+    // rather than driven by the draw loop, so the catalog keeps playing while the
+    // emblem is scrolled out of view.
     useEffect(() => {
         if (!playhead && !scrubbing) return;
         let sector = -1;
+        let spoke: string | undefined;
         let spokeAt = 0;
         const tick = () => {
             const now = performance.now();
-            const turns = rotationAt(now);
-            const next = Math.min(Math.floor((turns - Math.floor(turns)) * RELEASES.length), RELEASES.length - 1);
+            const { sector: next, snippet } = beaconAt(RELEASES, rotationAt(now));
             // Re-asserted whenever nothing is audible, so a hover that takes the
             // playhead over gets it handed back the moment the pointer leaves.
-            if (next === sector && currentSnippet() !== null) return;
+            if (next === sector && snippet === spoke && currentSnippet() !== null) return;
             // However fast the moon is being turned, what is playing gets its
             // moment before the next record takes it — a spin should be heard
             // going past, not swallowed.
             if (now - spokeAt < SPEAK_MS) return;
             spokeAt = now;
             sector = next;
+            spoke = snippet;
             setActive(next);
-            const snippet = RELEASES[next].snippet;
             if (snippet) playSnippet(snippet);
         };
         tick();
@@ -149,19 +152,6 @@ export function LabelHome() {
         if (dwell < LISTEN_DWELL) setDwell(LISTEN_DWELL);
         setPlayhead(true);
     }
-
-    // The emblem is the first thing anyone reaches, and its rays point at rows
-    // that are still far below the fold. Pulling the snippets in once the page
-    // has painted is what makes that first hover instant; before then they are
-    // just competing with the artwork.
-    useEffect(() => {
-        const id = window.setTimeout(() => {
-            for (const release of RELEASES) {
-                if (release.snippet) prefetchSnippet(release.snippet);
-            }
-        }, 1500);
-        return () => window.clearTimeout(id);
-    }, []);
 
     return (
         <>
