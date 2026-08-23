@@ -1,8 +1,8 @@
 'use client';
 
-import { type RefObject, useEffect, useRef } from 'react';
+import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { rotationAt } from '@/lib/playhead';
+import { dragRotation, grabRotation, releaseRotation, rotationAt, setHeld } from '@/lib/playhead';
 import { playSnippet, pauseSnippet } from '@/lib/snippets';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,17 @@ const STILL_ROT = 0.25;
 // How much of the .jm-burst box the emblem spans. Raise it to grow the moon
 // and its bars; the wordmark is sized off --burst, so it does not follow.
 const FIT = 1.58;
+
+// What counts as a tap on the moon rather than a turn of it: a press that goes
+// nowhere much and lets go quickly. A tap works the transport, the same as
+// pressing the wordmark; anything longer or further is just the platter being
+// turned, and leaves the transport as it found it.
+const TAP_TURNS = 0.008;
+const TAP_MS = 350;
+
+// The moon's own radius in design units — the shader's disc, and the reach of
+// the surface you can take hold of to turn it.
+const R_DISC = 0.295;
 
 const VERT = `#version 300 es
 void main() {
@@ -58,7 +69,7 @@ const vec3 OCHRE   = vec3(0.722, 0.475, 0.165); // #b8792a
 
 const float RAYS   = 7.0;      // bars per arc
 const float GAP    = 0.0667;   // 4deg of a 60deg sector
-const float R_DISC = 0.295;
+const float R_DISC = ${R_DISC.toFixed(3)};
 const float R_IN   = 0.34;
 
 // Where the disc sits inside the PNG: centre in uv (v from bottom) and the
@@ -71,7 +82,11 @@ const float IMG_R  = 0.41;
 // how big the burst is — iScale does, and FIT is what the burst spans of it.
 const float FIT    = ${FIT.toFixed(2)};
 
-float hash(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453123); }
+// sin() stops being random once its argument runs into the millions, and the
+// seeds below climb with the clock, so fold before the sine. A deal repeating a
+// thousand generations later is nobody's problem; a page left open long enough
+// for every bar to hash the same — one solid, identical arc — is.
+float hash(float n) { return fract(sin(mod(n, 1024.0) * 127.1 + 311.7) * 43758.5453123); }
 
 // A kick drum at ~84bpm: sharp attack, exponential decay, velocity varies.
 float kick(float t) {
@@ -124,10 +139,13 @@ vec3 drawRay(float sector, float i, float r, float ang01, float t, float k, floa
 
     // Each pass of the beacon re-deals this bar — but the new deal morphs in
     // during the ring-down rather than snapping at the strike: the bar grows
-    // in its old shape and shrinks back into its new one.
+    // in its old shape and shrinks back into its new one. The counter folds for
+    // the same reason hash() does: unfolded it is six figures within the hour,
+    // past where float can tell one bar's seed from the next's. Both generations
+    // fold alike, so the wrap crossfades like any other pass.
     float genN = floor(sweepT);
-    float gen = genN * 101.7;
-    float genP = (genN - 1.0) * 101.7;
+    float gen = mod(genN, 512.0) * 101.7;
+    float genP = mod(genN - 1.0, 512.0) * 101.7;
     float xf = smoothstep(0.5, 4.0, phN);
 
     float start = R_IN + mix(hash(seed + genP + 3.0), hash(seed + gen + 3.0), xf) * 0.03;
@@ -253,6 +271,16 @@ function wedge(a0: number, a1: number, r0: number, r1: number) {
     const [x3, y3] = pt(a0, r1);
     return `M${x0} ${y0}A${r0} ${r0} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r1} ${r1} 0 0 0 ${x3} ${y3}Z`;
 }
+
+// Where a hand is on the platter, in turns clockwise from twelve — the same
+// measure the rotation itself is in, so the moon follows the hand one to one.
+// Measured against the emblem's box rather than whatever surface was grabbed,
+// since the wordmark takes a hand as readily as the face around it.
+const angleOf = (event: ReactPointerEvent<Element>, box: DOMRect) => {
+    const x = event.clientX - (box.left + box.width / 2);
+    const y = event.clientY - (box.top + box.height / 2);
+    return Math.atan2(x, -y) / (2 * Math.PI);
+};
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string) {
     const shader = gl.createShader(type);
@@ -395,24 +423,151 @@ export function RayBurst({
     onActive,
     playhead,
     onTogglePlayhead,
+    onSpin,
 }: {
     items: { id: string; title: string; artist: string; snippet?: string }[];
     active: number | null;
     onActive: (index: number | null) => void;
     playhead: boolean;
     onTogglePlayhead: () => void;
+    onSpin: (spinning: boolean) => void;
 }) {
     const reduceMotion = useReducedMotion();
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // The emblem's own box, which every angle is measured from.
+    const burstRef = useRef<HTMLDivElement>(null);
+    // The hand on the platter: which pointer has it, where it last was, and how
+    // long and how far it has been turning — enough to tell a tap from a spin.
+    const grab = useRef<{ id: number; angle: number; at: number; moved: number } | null>(null);
+    // The emblem's own hover, kept apart from the active arc: the catalog sets
+    // that one too, and a cover down the page is not a hand on these bars.
+    const [hovered, setHovered] = useState<number | null>(null);
     // The kick and the wavefronts were always the emblem's playing face; now
     // there is something actually playing to give them to.
     useMoonShader(canvasRef, items.length, active, playhead, reduceMotion === true);
 
+    // A gesture does not always end on the emblem. The pointer can be let go
+    // over another window, or the tab can lose focus mid-spin, and none of that
+    // reaches the surface the hand started on — leaving the moon frozen under a
+    // hand that is no longer there. The window is asked as well, and whichever
+    // hears it first ends the turn; the other finds nothing left to end.
+    const onSpinRef = useRef(onSpin);
+    onSpinRef.current = onSpin;
+    useEffect(() => {
+        const end = () => {
+            const hand = grab.current;
+            if (!hand) return;
+            grab.current = null;
+            releaseRotation(performance.now());
+            if (hand.moved >= TAP_TURNS) onSpinRef.current(false);
+        };
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+        window.addEventListener('blur', end);
+        return () => {
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+            window.removeEventListener('blur', end);
+        };
+    }, []);
+
+    // A hovered arc waits for the beacon rather than reaching for it: the moon
+    // carries on turning until it is crossing the arc under the pointer, and
+    // only then holds there, the bar lit and the record sounding, for as long
+    // as the pointer stays on it. An arc the beacon has not reached neither
+    // sounds nor stops the moon.
+    useEffect(() => {
+        if (hovered === null || playhead) return;
+        const snippet = items[hovered]?.snippet;
+        let landed = false;
+        const tick = () => {
+            const turns = rotationAt(performance.now());
+            const beacon = Math.min(Math.floor((turns - Math.floor(turns)) * items.length), items.length - 1);
+            if (landed || beacon !== hovered) return;
+            landed = true;
+            // Nothing left to watch once the moon is stopped where it is, and a
+            // poll that kept going would start the snippet over as it ended.
+            window.clearInterval(id);
+            setHeld(true, performance.now());
+            if (snippet) playSnippet(snippet);
+        };
+        const id = window.setInterval(tick, 60);
+        tick();
+        return () => {
+            window.clearInterval(id);
+            if (!landed) return;
+            setHeld(false, performance.now());
+            if (snippet) pauseSnippet();
+        };
+    }, [hovered, playhead, items]);
+
     const span = 360 / items.length;
     const rHit = [round(500 * FIT * 0.32), round(500 * FIT * 0.83)] as const;
+    // The face reaches out to where the bars begin, so there is no dead ring
+    // between the two.
+    const rPlatter = rHit[0];
+
+    // One set of handlers for every surface of the moon, the wordmark included.
+    // A mouse cannot easily catch the ring left around the wordmark, and the
+    // label is what a hand reaches for on a record anyway.
+    const platter = reduceMotion
+        ? {}
+        : {
+              onPointerDown: (event: ReactPointerEvent<Element>) => {
+                  const box = burstRef.current?.getBoundingClientRect();
+                  if (!box) return;
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  const now = performance.now();
+                  grab.current = { id: event.pointerId, angle: angleOf(event, box), at: now, moved: 0 };
+                  grabRotation(now);
+                  // A hand on the platter is not a hover. Boundary events are
+                  // not to be counted on once a pointer is captured, and a spin
+                  // that ends away from the emblem never sends the arc it
+                  // crossed a mouseleave to put it out.
+                  setHovered(null);
+                  if (!playhead) onActive(null);
+              },
+              onPointerMove: (event: ReactPointerEvent<Element>) => {
+                  const hand = grab.current;
+                  const box = burstRef.current?.getBoundingClientRect();
+                  if (!hand || hand.id !== event.pointerId || !box) return;
+                  const angle = angleOf(event, box);
+                  // The short way round, so twelve o'clock is not a wall
+                  const delta = angle - hand.angle - Math.round(angle - hand.angle);
+                  hand.angle = angle;
+                  // The press becomes a turn exactly once, at the moment it
+                  // stops being a tap: the catalog goes past under the hand
+                  // whether it was playing or not.
+                  const wasTap = hand.moved < TAP_TURNS;
+                  hand.moved += Math.abs(delta);
+                  if (wasTap && hand.moved >= TAP_TURNS) onSpin(true);
+                  dragRotation(delta, performance.now());
+              },
+              onPointerUp: (event: ReactPointerEvent<Element>) => {
+                  const hand = grab.current;
+                  if (!hand || hand.id !== event.pointerId) return;
+                  grab.current = null;
+                  const now = performance.now();
+                  releaseRotation(now);
+                  // Letting go hands the moon back to itself: the motor takes
+                  // the flick down to the spin the page opened with, and the
+                  // catalog goes quiet with the hand that was turning it.
+                  if (hand.moved >= TAP_TURNS) onSpin(false);
+                  else if (now - hand.at < TAP_MS) onTogglePlayhead();
+              },
+              onPointerCancel: (event: ReactPointerEvent<Element>) => {
+                  const hand = grab.current;
+                  if (!hand || hand.id !== event.pointerId) return;
+                  grab.current = null;
+                  releaseRotation(performance.now());
+                  if (hand.moved >= TAP_TURNS) onSpin(false);
+              },
+          };
 
     return (
         <motion.div
+            ref={burstRef}
             className="jm-burst relative mx-auto aspect-square"
             initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -427,16 +582,43 @@ export function RayBurst({
                 className="pointer-events-none absolute top-1/2 left-1/2 z-0 h-screen w-screen -translate-x-1/2 -translate-y-1/2"
             />
 
-            {/* The wordmark is the transport. Press it and the beacon stops
-                being decoration: whichever arc it is crossing is the record
-                you hear, and it hands over to the next one as it passes. */}
+            {/* The moon's face is a platter: take hold of it and it goes where
+                your hand takes it, keeps the flick you let it go with, and the
+                motor eases it back to the spin it opened with. Under the hand
+                the catalog plays past the beacon whether the transport is on or
+                not, and goes quiet again as soon as the hand comes off. */}
+            {!reduceMotion && (
+                <svg viewBox="-500 -500 1000 1000" aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] h-full w-full">
+                    <circle
+                        cx="0"
+                        cy="0"
+                        r={rPlatter}
+                        fill="transparent"
+                        className="pointer-events-auto cursor-grab touch-none active:cursor-grabbing"
+                        {...platter}
+                    />
+                </svg>
+            )}
+
+            {/* The wordmark is the transport, and the label at the centre of
+                the platter besides: tap it and the beacon stops being
+                decoration — whichever arc it is crossing is the record you
+                hear — while a press that turns instead spins the moon, which
+                is the only grip a mouse can reliably find. */}
             <button
                 type="button"
-                onClick={onTogglePlayhead}
+                {...platter}
+                // A press with a pointer is the platter's to read — it tells a
+                // tap from a turn. This leaves the keyboard's own press, which
+                // arrives as a click nobody clicked.
+                onClick={(event) => {
+                    if (event.detail === 0 || reduceMotion) onTogglePlayhead();
+                }}
                 aria-pressed={playhead}
                 aria-label={playhead ? 'Stop the moon playing the catalog' : 'Let the moon play the catalog'}
                 className={cn(
-                    'font-header absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase transition-colors duration-700 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[var(--ink)]',
+                    'font-header absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 touch-none text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase transition-colors duration-700 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[var(--ink)]',
+                    reduceMotion ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
                     playhead && 'text-[var(--ochre)]'
                 )}
                 style={{ fontSize: 'calc(var(--burst) * 0.094)' }}
@@ -456,12 +638,18 @@ export function RayBurst({
                         href={`#${item.id}`}
                         aria-label={`${item.title} by ${item.artist}`}
                         onMouseEnter={() => {
+                            // While the transport is running the emblem is
+                            // playing itself, and a hover is not allowed to take
+                            // the record off it. Turning the moon by hand still
+                            // is — the platter does not care what is playing,
+                            // and a hand already turning it is not hovering.
+                            if (playhead || grab.current) return;
+                            setHovered(index);
                             onActive(index);
-                            if (item.snippet) playSnippet(item.snippet);
                         }}
                         onMouseLeave={() => {
-                            onActive(null);
-                            pauseSnippet();
+                            setHovered(null);
+                            if (!playhead) onActive(null);
                         }}
                         onFocus={() => onActive(index)}
                         onBlur={() => onActive(null)}

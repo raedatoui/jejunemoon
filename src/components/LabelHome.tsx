@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import projectsData from '@/app/projects.json';
 import { rotationAt, setTurnSeconds } from '@/lib/playhead';
 import { ProjectsListSchema } from '@/lib/schemas';
@@ -43,6 +43,11 @@ const RELEASES = withAnchorIds(ProjectsListSchema.parse(projectsData).projects).
 // listening figure is close to a snippet's own length.
 const IDLE_DWELL = 0.6;
 const LISTEN_DWELL = 8;
+
+// The least a record gets at the speaker before the next one takes over. Under
+// a hand the catalog can go past quicker than a snippet can start speaking, and
+// a record handed over every poll is a record nobody hears at all.
+const SPEAK_MS = 250;
 const MIN_DWELL = 0.02;
 const MAX_DWELL = 60;
 
@@ -56,10 +61,9 @@ export function LabelHome() {
     const [active, setActive] = useState<number | null>(null);
     const [playhead, setPlayhead] = useState(false);
     const [dwell, setDwell] = useState(IDLE_DWELL);
-    // Set when the transport slowed the moon down of its own accord, so that
-    // stopping can hand back the spin the page opened with — unless the slider
-    // has been touched since, in which case that speed is the one that's wanted.
-    const slowed = useRef(false);
+    // A record turned by hand plays like one the transport is on, for exactly as
+    // long as the hand is on it.
+    const [scrubbing, setScrubbing] = useState(false);
 
     useEffect(() => {
         setTurnSeconds(dwell * RELEASES.length, performance.now());
@@ -70,14 +74,21 @@ export function LabelHome() {
     // against the rotation clock rather than driven by the draw loop, so the
     // catalog keeps playing while the emblem is scrolled out of view.
     useEffect(() => {
-        if (!playhead) return;
+        if (!playhead && !scrubbing) return;
         let sector = -1;
+        let spokeAt = 0;
         const tick = () => {
-            const turns = rotationAt(performance.now());
+            const now = performance.now();
+            const turns = rotationAt(now);
             const next = Math.min(Math.floor((turns - Math.floor(turns)) * RELEASES.length), RELEASES.length - 1);
             // Re-asserted whenever nothing is audible, so a hover that takes the
             // playhead over gets it handed back the moment the pointer leaves.
             if (next === sector && currentSnippet() !== null) return;
+            // However fast the moon is being turned, what is playing gets its
+            // moment before the next record takes it — a spin should be heard
+            // going past, not swallowed.
+            if (now - spokeAt < SPEAK_MS) return;
+            spokeAt = now;
             sector = next;
             setActive(next);
             const snippet = RELEASES[next].snippet;
@@ -85,28 +96,57 @@ export function LabelHome() {
         };
         tick();
         const id = window.setInterval(tick, 100);
-        return () => {
-            window.clearInterval(id);
+        // Only the poll is torn down here. Silencing the transport belongs to
+        // stopping it, so that a hover taking the record over from the moon is
+        // not left holding a snippet the teardown has just paused.
+        return () => window.clearInterval(id);
+    }, [playhead, scrubbing]);
+
+    // The players live outside React, so nothing should outlive the page.
+    useEffect(() => () => pauseSnippet(), []);
+
+    // Stopping hands back the spin the page opened with, whatever the slider had
+    // been set to for listening.
+    function stopPlayhead() {
+        setDwell(IDLE_DWELL);
+        setPlayhead(false);
+        setScrubbing(false);
+    }
+
+    // A hover down in the catalog is a reader taking a record over from the
+    // transport: the moon lets go of it, stops, and winds back to its opening
+    // spin, leaving the snippet and the highlight to the cover that started
+    // them. The emblem's own arcs are a different matter — a hover there is a
+    // moment's aside, and the beacon takes the catalog back on the way out.
+    function catalogActive(index: number | null) {
+        if (index !== null && (playhead || scrubbing)) {
+            stopPlayhead();
+            pauseSnippet();
+        }
+        setActive(index);
+    }
+
+    // The moon under a hand plays the catalog whether the transport is on or
+    // not; letting go hands it straight back to its own spin, and to silence
+    // unless the transport was already running.
+    function scrub(spinning: boolean) {
+        setScrubbing(spinning);
+        if (!spinning && !playhead) {
             pauseSnippet();
             setActive(null);
-        };
-    }, [playhead]);
+        }
+    }
 
     function togglePlayhead() {
         if (playhead) {
-            if (slowed.current) {
-                slowed.current = false;
-                setDwell(IDLE_DWELL);
-            }
-            setPlayhead(false);
+            stopPlayhead();
+            pauseSnippet();
+            setActive(null);
             return;
         }
         // Six-tenths of a second per record is a spin, not a listen, so starting
         // the transport slows the moon to something you can hear.
-        if (dwell < LISTEN_DWELL) {
-            slowed.current = true;
-            setDwell(LISTEN_DWELL);
-        }
+        if (dwell < LISTEN_DWELL) setDwell(LISTEN_DWELL);
         setPlayhead(true);
     }
 
@@ -125,29 +165,38 @@ export function LabelHome() {
 
     return (
         <>
-            {/* One knob, in seconds per record: how long the beacon dwells is
-                the same thing as how fast the moon turns. */}
-            <div className="fixed top-5 right-6 z-30 flex items-center gap-2 md:right-10">
-                <span className="font-credit text-[10px] tracking-[0.28em] text-[var(--ink-soft)] uppercase">Speed</span>
-                <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.001}
-                    value={positionOf(dwell)}
-                    onChange={(event) => {
-                        slowed.current = false;
-                        setDwell(dwellAt(Number(event.target.value)));
-                    }}
-                    aria-label="Rotation speed"
-                    title={`${dwell < 1 ? dwell.toFixed(2) : dwell.toFixed(1)}s per record`}
-                    className="w-16 cursor-pointer accent-[var(--ochre)]"
-                />
-            </div>
-
             <section className="relative overflow-x-clip px-6 pt-14 pb-24 text-center md:px-10 md:pt-20 md:pb-32">
-                <div className="mt-2 md:mt-6">
-                    <RayBurst items={RELEASES} active={active} onActive={setActive} playhead={playhead} onTogglePlayhead={togglePlayhead} />
+                <div className="relative mt-2 md:mt-6">
+                    <RayBurst
+                        items={RELEASES}
+                        active={active}
+                        onActive={setActive}
+                        playhead={playhead}
+                        onTogglePlayhead={togglePlayhead}
+                        onSpin={scrub}
+                    />
+
+                    {/* One knob, in seconds per record: how long the beacon
+                        dwells is the same thing as how fast the moon turns. It
+                        belongs to the transport, so it is only out while the
+                        transport is running — sitting under the wordmark that
+                        started it. */}
+                    {playhead && (
+                        <div className="absolute top-[62%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+                            <span className="font-credit text-[10px] tracking-[0.28em] text-[var(--ink-soft)] uppercase">Speed</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={1}
+                                step={0.001}
+                                value={positionOf(dwell)}
+                                onChange={(event) => setDwell(dwellAt(Number(event.target.value)))}
+                                aria-label="Rotation speed"
+                                title={`${dwell < 1 ? dwell.toFixed(2) : dwell.toFixed(1)}s per record`}
+                                className="w-16 cursor-pointer accent-[var(--ochre)]"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <h1 className="font-header mx-auto mt-10 max-w-[20ch] text-[clamp(2rem,5.5vw,4rem)] leading-[1.02] font-light tracking-[-0.025em] md:mt-12">
@@ -174,7 +223,7 @@ export function LabelHome() {
                                     release={release}
                                     index={index}
                                     isActive={active === index}
-                                    onActive={setActive}
+                                    onActive={catalogActive}
                                 />
                             ))}
                         </div>
