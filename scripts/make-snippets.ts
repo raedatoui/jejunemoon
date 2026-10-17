@@ -130,6 +130,7 @@ async function main() {
     }
 
     fs.writeFileSync(projectsPath, `${JSON.stringify(data, null, 4)}\n`);
+    execFileSync(path.join(projectRoot, 'node_modules/.bin/biome'), ['format', '--write', projectsPath]);
     console.log(`\nUpdated ${projectsPath}`);
 }
 

@@ -93,9 +93,7 @@
                 }
             ],
             "snippet": "/snippets/it-stays-1.m4a",
-            "snippets": [
-                "/snippets/it-stays-1.m4a"
-            ]
+            "snippets": ["/snippets/it-stays-1.m4a"]
         },
         {
             "title": "Disobey",
@@ -140,12 +138,7 @@
                 }
             ],
             "snippet": "/snippets/disobey-1.m4a",
-            "snippets": [
-                "/snippets/disobey-1.m4a",
-                "/snippets/disobey-2.m4a",
-                "/snippets/disobey-3.m4a",
-                "/snippets/disobey-4.m4a"
-            ]
+            "snippets": ["/snippets/disobey-1.m4a", "/snippets/disobey-2.m4a", "/snippets/disobey-3.m4a", "/snippets/disobey-4.m4a"]
         },
         {
             "title": "Dusk",
@@ -186,9 +179,7 @@
                 }
             ],
             "snippet": "/snippets/dusk-1.m4a",
-            "snippets": [
-                "/snippets/dusk-1.m4a"
-            ]
+            "snippets": ["/snippets/dusk-1.m4a"]
         },
         {
             "title": "May 26, 2025",
@@ -221,12 +212,7 @@
                 }
             ],
             "snippet": "/snippets/may-26-2025-1.m4a",
-            "snippets": [
-                "/snippets/may-26-2025-1.m4a",
-                "/snippets/may-26-2025-2.m4a",
-                "/snippets/may-26-2025-3.m4a",
-                "/snippets/may-26-2025-4.m4a"
-            ]
+            "snippets": ["/snippets/may-26-2025-1.m4a", "/snippets/may-26-2025-2.m4a", "/snippets/may-26-2025-3.m4a", "/snippets/may-26-2025-4.m4a"]
         },
         {
             "title": "The Ephemeral Trail",
