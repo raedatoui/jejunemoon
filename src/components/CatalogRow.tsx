@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/schemas';
-import { playSnippet, pauseSnippet } from '@/lib/snippets';
+import { currentSnippet, pauseSnippet, playSnippet, sourcesOf } from '@/lib/snippets';
+import { useMobile } from '@/lib/mobile';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -15,6 +16,10 @@ function releaseLine(release: { releaseDate?: string; year: string }) {
     const [year, month, day] = release.releaseDate.split('-').map(Number);
     return `${day} ${MONTHS[month - 1]} ${year}`;
 }
+
+// The corner chip, on the button that flips the sleeve over.
+const CHIP =
+    'font-credit bg-[var(--lift)] px-2 py-1 text-[10px] tracking-[0.18em] text-[var(--ink)] uppercase opacity-70 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100';
 
 const PLATFORM_ICONS: Record<string, string> = {
     Spotify: '/icons/spotify_without_text.png',
@@ -40,13 +45,28 @@ export function CatalogRow({
 }) {
     const [flipped, setFlipped] = useState(false);
     const reduceMotion = useReducedMotion();
+    const mobile = useMobile();
     const coverOnLeft = index % 2 === 0;
+
+    // Which of the record's tracks a preview reaches for. A hover is a passing
+    // thing and a tap is a small commitment, but neither is a request for the
+    // first track again — the sleeve deals one of the four the way the emblem
+    // deals its bars, so a record played twice is rarely played the same.
+    const play = () => {
+        const srcs = sourcesOf(release);
+        if (!srcs.length) return;
+        // Already this record's voice. A second tap is not asking for it from
+        // the top, and certainly not asking for silence.
+        const heard = currentSnippet();
+        if (heard && srcs.includes(heard)) return;
+        playSnippet(srcs[Math.floor(Math.random() * srcs.length)]);
+    };
 
     return (
         <motion.article
             id={release.id}
-            onMouseEnter={() => onActive(index)}
-            onMouseLeave={() => onActive(null)}
+            onMouseEnter={mobile ? undefined : () => onActive(index)}
+            onMouseLeave={mobile ? undefined : () => onActive(null)}
             initial={reduceMotion ? false : { opacity: 0, y: 28 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
@@ -67,26 +87,43 @@ export function CatalogRow({
                                 flipped && 'pointer-events-none'
                             )}
                             aria-hidden={flipped}
-                            onMouseEnter={() => release.snippet && !flipped && playSnippet(release.snippet)}
-                            onMouseLeave={pauseSnippet}
+                            onMouseEnter={mobile ? undefined : () => !flipped && play()}
+                            onMouseLeave={mobile ? undefined : pauseSnippet}
                         >
                             {release.thumb.startsWith('/') ? (
                                 <img src={release.thumb} alt={`${release.title} cover art`} className="h-full w-full object-cover" />
                             ) : (
                                 <div className={cn('h-full w-full', release.thumb)} />
                             )}
+                            {mobile && (
+                                <button
+                                    type="button"
+                                    onClick={play}
+                                    tabIndex={-1}
+                                    aria-label={`Hear a moment of ${release.title}`}
+                                    className="absolute inset-0 cursor-pointer"
+                                />
+                            )}
                             <button
                                 type="button"
                                 onClick={() => {
-                                    pauseSnippet();
+                                    // Turning the sleeve over is no reason to
+                                    // stop the record it belongs to. On a finger
+                                    // the chip is part of the artwork, and the
+                                    // artwork is what started the preview; on a
+                                    // pointer the hover owns the sound and the
+                                    // cover going away should take it with it.
+                                    if (!mobile) pauseSnippet();
                                     setFlipped(true);
                                 }}
                                 tabIndex={flipped ? -1 : 0}
-                                className="absolute inset-0 flex cursor-pointer items-end justify-end p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
+                                aria-label={`Where to hear ${release.title}`}
+                                className={cn(
+                                    'absolute flex cursor-pointer items-end justify-end p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]',
+                                    mobile ? 'right-0 bottom-0 z-10' : 'inset-0'
+                                )}
                             >
-                                <span className="font-credit bg-[var(--lift)] px-2 py-1 text-[10px] tracking-[0.18em] text-[var(--ink)] uppercase opacity-70 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-                                    Listen
-                                </span>
+                                <span className={CHIP}>Listen</span>
                             </button>
                         </div>
 

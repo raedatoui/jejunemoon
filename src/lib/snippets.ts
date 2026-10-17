@@ -4,6 +4,12 @@
 // snippet is wanted and kept for the life of the page. A second hover then
 // replays from cache instead of going back to the network.
 const players = new Map<string, HTMLAudioElement>();
+
+// Every track we hold for a release, falling back to the single snippet the
+// catalog carried before there were four of them.
+export const sourcesOf = (release: { snippet?: string; snippets?: string[] }) =>
+    release.snippets?.length ? release.snippets : release.snippet ? [release.snippet] : [];
+
 // A snippet pulled down ahead of time is kept as a blob rather than trusted to
 // still be in the HTTP cache when someone finally hovers the record.
 const preloaded = new Map<string, string>();
@@ -108,6 +114,12 @@ export function pauseSnippet() {
 
 // What is audible right now, if anything. The playhead uses it to tell a hover
 // that has taken over from a silence it should fill.
+//
+// Asked of the element rather than of what was last handed to it: a snippet is
+// ten seconds and runs out on its own, without anyone calling pause. Answering
+// with the stale name would have a cover believe its record is still speaking
+// and quietly decline to start it again — a tap that looks like it stopped the
+// sound rather than one that was refused.
 export function currentSnippet() {
-    return playingSrc;
+    return playing && !playing.paused ? playingSrc : null;
 }

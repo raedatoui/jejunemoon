@@ -3,7 +3,8 @@
 import { type PointerEvent as ReactPointerEvent, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { dragRotation, grabRotation, releaseRotation, rotationAt, setHeld } from '@/lib/playhead';
-import { playSnippet, pauseSnippet, preloadSnippets } from '@/lib/snippets';
+import { playSnippet, pauseSnippet, preloadSnippets, sourcesOf } from '@/lib/snippets';
+import { useMobile } from '@/lib/mobile';
 import { cn } from '@/lib/utils';
 
 /**
@@ -48,6 +49,12 @@ const GAP = 0.0667;
 // Snippets are small and often already in cache, and a bar that jumped straight
 // to full length would never be seen to grow at all.
 const LOAD_TAU = 0.45;
+
+// The label at the centre of the platter, worn by the transport button on a
+// pointer and by a plain paragraph on a finger.
+const WORDMARK =
+    'font-header absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 touch-none text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase transition-colors duration-700 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[var(--ink)]';
+const WORDMARK_SIZE = { fontSize: 'calc(var(--burst) * 0.094)' };
 
 const VERT = `#version 300 es
 void main() {
@@ -294,10 +301,6 @@ function wedge(a0: number, a1: number, r0: number, r1: number) {
 
 type Sounded = { snippet?: string; snippets?: string[] };
 
-// Every track we hold for a release, falling back to the single snippet the
-// catalog carried before there were four of them.
-const sourcesOf = (item: Sounded) => (item.snippets?.length ? item.snippets : item.snippet ? [item.snippet] : []);
-
 // Which of a release's tracks a bar belongs to. Seven bars and up to four
 // tracks, so they go two apiece with the last taking what is left — and all
 // seven to the one track where a release is a single.
@@ -542,6 +545,7 @@ export function RayBurst({
     onSpin: (spinning: boolean) => void;
 }) {
     const reduceMotion = useReducedMotion();
+    const mobile = useMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     // The emblem's own box, which every angle is measured from.
     const burstRef = useRef<HTMLDivElement>(null);
@@ -650,60 +654,61 @@ export function RayBurst({
     // One set of handlers for every surface of the moon, the wordmark included.
     // A mouse cannot easily catch the ring left around the wordmark, and the
     // label is what a hand reaches for on a record anyway.
-    const platter = reduceMotion
-        ? {}
-        : {
-              onPointerDown: (event: ReactPointerEvent<Element>) => {
-                  const box = burstRef.current?.getBoundingClientRect();
-                  if (!box) return;
-                  event.preventDefault();
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  const now = performance.now();
-                  grab.current = { id: event.pointerId, angle: angleOf(event, box), at: now, moved: 0 };
-                  grabRotation(now);
-                  // A hand on the platter is not a hover. Boundary events are
-                  // not to be counted on once a pointer is captured, and a spin
-                  // that ends away from the emblem never sends the arc it
-                  // crossed a mouseleave to put it out.
-                  setHovered(null);
-                  if (!playhead) onActive(null);
-              },
-              onPointerMove: (event: ReactPointerEvent<Element>) => {
-                  const hand = grab.current;
-                  const box = burstRef.current?.getBoundingClientRect();
-                  if (!hand || hand.id !== event.pointerId || !box) return;
-                  const angle = angleOf(event, box);
-                  // The short way round, so twelve o'clock is not a wall
-                  const delta = angle - hand.angle - Math.round(angle - hand.angle);
-                  hand.angle = angle;
-                  // The press becomes a turn exactly once, at the moment it
-                  // stops being a tap: the catalog goes past under the hand
-                  // whether it was playing or not.
-                  const wasTap = hand.moved < TAP_TURNS;
-                  hand.moved += Math.abs(delta);
-                  if (wasTap && hand.moved >= TAP_TURNS) onSpin(true);
-                  dragRotation(delta, performance.now());
-              },
-              onPointerUp: (event: ReactPointerEvent<Element>) => {
-                  const hand = grab.current;
-                  if (!hand || hand.id !== event.pointerId) return;
-                  grab.current = null;
-                  const now = performance.now();
-                  releaseRotation(now);
-                  // Letting go hands the moon back to itself: the motor takes
-                  // the flick down to the spin the page opened with, and the
-                  // catalog goes quiet with the hand that was turning it.
-                  if (hand.moved >= TAP_TURNS) onSpin(false);
-                  else if (now - hand.at < TAP_MS) onTogglePlayhead();
-              },
-              onPointerCancel: (event: ReactPointerEvent<Element>) => {
-                  const hand = grab.current;
-                  if (!hand || hand.id !== event.pointerId) return;
-                  grab.current = null;
-                  releaseRotation(performance.now());
-                  if (hand.moved >= TAP_TURNS) onSpin(false);
-              },
-          };
+    const platter =
+        reduceMotion || mobile
+            ? {}
+            : {
+                  onPointerDown: (event: ReactPointerEvent<Element>) => {
+                      const box = burstRef.current?.getBoundingClientRect();
+                      if (!box) return;
+                      event.preventDefault();
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      const now = performance.now();
+                      grab.current = { id: event.pointerId, angle: angleOf(event, box), at: now, moved: 0 };
+                      grabRotation(now);
+                      // A hand on the platter is not a hover. Boundary events are
+                      // not to be counted on once a pointer is captured, and a spin
+                      // that ends away from the emblem never sends the arc it
+                      // crossed a mouseleave to put it out.
+                      setHovered(null);
+                      if (!playhead) onActive(null);
+                  },
+                  onPointerMove: (event: ReactPointerEvent<Element>) => {
+                      const hand = grab.current;
+                      const box = burstRef.current?.getBoundingClientRect();
+                      if (!hand || hand.id !== event.pointerId || !box) return;
+                      const angle = angleOf(event, box);
+                      // The short way round, so twelve o'clock is not a wall
+                      const delta = angle - hand.angle - Math.round(angle - hand.angle);
+                      hand.angle = angle;
+                      // The press becomes a turn exactly once, at the moment it
+                      // stops being a tap: the catalog goes past under the hand
+                      // whether it was playing or not.
+                      const wasTap = hand.moved < TAP_TURNS;
+                      hand.moved += Math.abs(delta);
+                      if (wasTap && hand.moved >= TAP_TURNS) onSpin(true);
+                      dragRotation(delta, performance.now());
+                  },
+                  onPointerUp: (event: ReactPointerEvent<Element>) => {
+                      const hand = grab.current;
+                      if (!hand || hand.id !== event.pointerId) return;
+                      grab.current = null;
+                      const now = performance.now();
+                      releaseRotation(now);
+                      // Letting go hands the moon back to itself: the motor takes
+                      // the flick down to the spin the page opened with, and the
+                      // catalog goes quiet with the hand that was turning it.
+                      if (hand.moved >= TAP_TURNS) onSpin(false);
+                      else if (now - hand.at < TAP_MS) onTogglePlayhead();
+                  },
+                  onPointerCancel: (event: ReactPointerEvent<Element>) => {
+                      const hand = grab.current;
+                      if (!hand || hand.id !== event.pointerId) return;
+                      grab.current = null;
+                      releaseRotation(performance.now());
+                      if (hand.moved >= TAP_TURNS) onSpin(false);
+                  },
+              };
 
     return (
         <motion.div
@@ -727,7 +732,7 @@ export function RayBurst({
                 motor eases it back to the spin it opened with. Under the hand
                 the catalog plays past the beacon whether the transport is on or
                 not, and goes quiet again as soon as the hand comes off. */}
-            {!reduceMotion && (
+            {!reduceMotion && !mobile && (
                 <svg viewBox="-500 -500 1000 1000" aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] h-full w-full">
                     <circle
                         cx="0"
@@ -744,29 +749,40 @@ export function RayBurst({
                 the platter besides: tap it and the beacon stops being
                 decoration — whichever arc it is crossing is the record you
                 hear — while a press that turns instead spins the moon, which
-                is the only grip a mouse can reliably find. */}
-            <button
-                type="button"
-                {...platter}
-                // A press with a pointer is the platter's to read — it tells a
-                // tap from a turn. This leaves the keyboard's own press, which
-                // arrives as a click nobody clicked.
-                onClick={(event) => {
-                    if (event.detail === 0 || reduceMotion) onTogglePlayhead();
-                }}
-                aria-pressed={playhead}
-                aria-label={playhead ? 'Stop the moon playing the catalog' : 'Let the moon play the catalog'}
-                className={cn(
-                    'font-header absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 touch-none text-center leading-[1.02] font-bold tracking-[-0.08em] uppercase transition-colors duration-700 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[var(--ink)]',
-                    reduceMotion ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
-                    playhead && 'text-[var(--ochre)]'
-                )}
-                style={{ fontSize: 'calc(var(--burst) * 0.094)' }}
-            >
-                JeJune
-                <br />
-                Moon
-            </button>
+                is the only grip a mouse can reliably find.
+
+                On mobile it is neither, and so not a control at all: just the
+                label, printed where a label goes. */}
+            {mobile ? (
+                <p className={cn(WORDMARK, 'cursor-default')} style={WORDMARK_SIZE}>
+                    JeJune
+                    <br />
+                    Moon
+                </p>
+            ) : (
+                <button
+                    type="button"
+                    {...platter}
+                    // A press with a pointer is the platter's to read — it tells
+                    // a tap from a turn. This leaves the keyboard's own press,
+                    // which arrives as a click nobody clicked.
+                    onClick={(event) => {
+                        if (event.detail === 0 || reduceMotion) onTogglePlayhead();
+                    }}
+                    aria-pressed={playhead}
+                    aria-label={playhead ? 'Stop the moon playing the catalog' : 'Let the moon play the catalog'}
+                    className={cn(
+                        WORDMARK,
+                        reduceMotion ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
+                        playhead && 'text-[var(--ochre)]'
+                    )}
+                    style={WORDMARK_SIZE}
+                >
+                    JeJune
+                    <br />
+                    Moon
+                </button>
+            )}
 
             {/* The svg box would swallow every click across the emblem, wordmark
                 included, so the hits are left to the wedges themselves. */}
@@ -778,6 +794,7 @@ export function RayBurst({
                         href={`#${item.id}`}
                         aria-label={`${item.title} by ${item.artist}`}
                         onMouseEnter={(event) => {
+                            if (mobile) return;
                             // While the transport is running the emblem is
                             // playing itself, and a hover is not allowed to take
                             // the record off it. Turning the moon by hand still
@@ -789,15 +806,26 @@ export function RayBurst({
                             onActive(index);
                         }}
                         onMouseMove={(event) => {
-                            if (playhead || grab.current) return;
+                            if (mobile || playhead || grab.current) return;
                             const next = trackUnder(event);
                             // Only a crossing into the next group of bars is
                             // worth a render; the pixels between them are not.
                             setHoverSnippet((current) => (current === next ? current : next));
                         }}
                         onMouseLeave={() => {
+                            if (mobile) return;
                             setHovered(null);
                             if (!playhead) onActive(null);
+                        }}
+                        onClick={(event) => {
+                            // The one gesture a finger gets on the emblem. The
+                            // link takes the page down to the record; the bar
+                            // under the tap says which of its tracks is heard
+                            // on the way there.
+                            if (!mobile) return;
+                            const snippet = trackUnder(event);
+                            onActive(index);
+                            if (snippet) playSnippet(snippet);
                         }}
                         onFocus={() => onActive(index)}
                         onBlur={() => onActive(null)}
