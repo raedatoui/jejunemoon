@@ -65,7 +65,7 @@ async function preload(src: string) {
             body.set(chunk, at);
             at += chunk.length;
         }
-        preloaded.set(src, URL.createObjectURL(new Blob([body], { type: 'audio/mp4' })));
+        preloaded.set(src, URL.createObjectURL(new Blob([body], { type: response.headers.get('content-type') || 'audio/mp4' })));
     } catch {
         // Nothing held onto — playing it will go back to the network.
     }

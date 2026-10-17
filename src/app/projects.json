@@ -251,6 +251,39 @@
                 "/snippets/the-ephemeral-trail-3.m4a",
                 "/snippets/the-ephemeral-trail-4.m4a"
             ]
+        },
+        {
+            "title": "Revenance",
+            "thumb": "/albums/6jpAkuw7KdCsCsiLb8skqC.jpg",
+            "artist": "Ludabuddha, Mina",
+            "year": "2026",
+            "releaseDate": "2026-10-16",
+            "format": "EP",
+            "genre": "Alternative",
+            "links": [
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/6jpAkuw7KdCsCsiLb8skqC"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://music.apple.com/us/album/revenance-ep/6798617555"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/1047626352"
+                },
+                {
+                    "platform": "Amazon Music",
+                    "url": "https://music.amazon.com/albums/B0HD7CRS2Y"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://tidal.com/album/549746447"
+                }
+            ],
+            "snippet": "/snippets/revenance-4.mp3",
+            "snippets": ["/snippets/revenance-4.mp3"]
         }
     ]
 }
