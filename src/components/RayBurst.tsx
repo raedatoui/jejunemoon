@@ -570,7 +570,7 @@ export function RayBurst({
     // the emblem is on the page rather than waiting its turn behind the artwork:
     // an arc sitting at nothing reads as broken, not as patient.
     useEffect(() => {
-        const srcs = [...new Set(bars.filter((src): src is string => src !== null))];
+        const srcs = Array.from(new Set(bars.filter((src): src is string => src !== null)));
         return preloadSnippets(srcs, (src, fraction) => {
             for (let i = 0; i < bars.length; i++) {
                 if (bars[i] === src) fills[i] = fraction;

@@ -114,7 +114,8 @@ async function main() {
         console.log(`  apple album ${albumId}: ${previews.length} of ${MAX_TRACKS} tracks`);
 
         const snippets: string[] = [];
-        for (const [index, preview] of previews.entries()) {
+        for (let index = 0; index < previews.length; index++) {
+            const preview = previews[index];
             const name = `${slug(project.title)}-${index + 1}.m4a`;
             const start = Math.max(0, duration(preview) / 2 - SNIPPET_SECONDS / 2);
             encode(preview, start, path.join(snippetsDir, name));

@@ -27,7 +27,9 @@ function player(src: string) {
 
 function advance(src: string, fraction: number) {
     progress.set(src, fraction);
-    for (const watcher of watchers) watcher(src, fraction);
+    watchers.forEach((watcher) => {
+        watcher(src, fraction);
+    });
 }
 
 // Pulled down by hand rather than left to the audio element, because the emblem
@@ -48,7 +50,16 @@ async function preload(src: string) {
             loaded += chunk.value.length;
             if (total > 0) advance(src, Math.min(loaded / total, 1));
         }
-        preloaded.set(src, URL.createObjectURL(new Blob(chunks, { type: 'audio/mp4' })));
+        // Joined into one buffer of our own rather than handed to Blob as a
+        // list: what the reader yields is backed by a buffer it will not
+        // promise is not shared, which is not something a Blob will take.
+        const body = new Uint8Array(loaded);
+        let at = 0;
+        for (const chunk of chunks) {
+            body.set(chunk, at);
+            at += chunk.length;
+        }
+        preloaded.set(src, URL.createObjectURL(new Blob([body], { type: 'audio/mp4' })));
     } catch {
         // Nothing held onto — playing it will go back to the network.
     }
