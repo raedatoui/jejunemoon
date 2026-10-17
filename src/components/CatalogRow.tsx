@@ -120,7 +120,8 @@ export function CatalogRow({
                                 aria-label={`Where to hear ${release.title}`}
                                 className={cn(
                                     'absolute flex cursor-pointer items-end justify-end p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]',
-                                    mobile ? 'right-0 bottom-0 z-10' : 'inset-0'
+                                    mobile ? 'right-0 bottom-0 z-10' : 'inset-0',
+                                    flipped && 'invisible'
                                 )}
                             >
                                 <span className={CHIP}>Listen</span>
@@ -166,9 +167,11 @@ export function CatalogRow({
                                 type="button"
                                 onClick={() => setFlipped(false)}
                                 tabIndex={flipped ? 0 : -1}
-                                aria-label={`Back to the ${release.title} cover`}
-                                className="absolute inset-0 z-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-[var(--ink)]"
-                            />
+                                aria-label={`Close listening links for ${release.title}`}
+                                className="absolute inset-0 z-0 flex cursor-pointer items-end justify-end p-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-[var(--ink)]"
+                            >
+                                <span className={CHIP}>Close</span>
+                            </button>
                         </div>
                     </motion.div>
                 </div>
