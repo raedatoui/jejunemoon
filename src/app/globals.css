@@ -48,7 +48,7 @@ h6 {
 /* Jejune Moon home palette, sampled from the logo: the moon disc, its
    wordmark, its crater shadows. Scoped so the rest of the site is untouched. */
 .jm {
-    --paper: #ede4cf;
+    --paper: #fef7d4;
     --lift: #f7f1e2;
     --ink: #100f0d;
     --ink-soft: #6b6353;
