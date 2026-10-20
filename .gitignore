@@ -3,6 +3,10 @@
 # dependencies
 /node_modules
 
+# local environment
+.env
+.env.*
+!.env.example
 
 # next.js
 /.next/
