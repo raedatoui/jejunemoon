@@ -51,51 +51,6 @@
             ]
         },
         {
-            "title": "It Stays",
-            "thumb": "/albums/it-stays.jpg",
-            "artist": "Ludabuddha, Mina",
-            "year": "2026",
-            "releaseDate": "2026-01-20",
-            "format": "Single",
-            "genre": "Alternative",
-            "links": [
-                {
-                    "platform": "Spotify",
-                    "url": "https://open.spotify.com/album/4fZ76uygI3J9GBFkAUyYC9"
-                },
-                {
-                    "platform": "Apple Music",
-                    "url": "https://geo.music.apple.com/us/album/it-stays-single/1866553126?app=music&ls=1&ct=FFM_b146e9d4bf5083d61d936b36186b7e5d&at=1001lwQy"
-                },
-                {
-                    "platform": "iTunes",
-                    "url": "https://geo.itunes.apple.com/us/album/it-stays-single/1866553126?app=itunes&ls=1&ct=FFM_dfec1522eaaf7e9a4484228651f99343&at=1001lwQy"
-                },
-                {
-                    "platform": "Deezer",
-                    "url": "https://www.deezer.com/album/891043122"
-                },
-                {
-                    "platform": "Amazon Music",
-                    "url": "https://music.amazon.com/albums/B0GF28V1Y2?ref=dm_ff_amazonmusic_3p&tag=featurefm-20"
-                },
-                {
-                    "platform": "YouTube",
-                    "url": "https://www.youtube.com/playlist?list=OLAK5uy_nSoyC9bFNIZOGNRbyp8eG2qcMQz0yHfm8"
-                },
-                {
-                    "platform": "SoundCloud",
-                    "url": "https://soundcloud.com/ludabuddha/it-stays-1"
-                },
-                {
-                    "platform": "Tidal",
-                    "url": "https://www.tidal.com/album/487076563"
-                }
-            ],
-            "snippet": "/snippets/it-stays-1.m4a",
-            "snippets": ["/snippets/it-stays-1.m4a"]
-        },
-        {
             "title": "Disobey",
             "thumb": "/albums/1tR02Dmgw8WzDi2fd6ZUbU.jpg",
             "artist": "Mina",
