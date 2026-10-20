@@ -231,14 +231,10 @@
                 {
                     "platform": "Amazon Music",
                     "url": "https://music.amazon.com/albums/B0HD7CRS2Y"
-                },
-                {
-                    "platform": "Tidal",
-                    "url": "https://tidal.com/album/549746447"
                 }
             ],
-            "snippet": "/snippets/revenance-4.mp3",
-            "snippets": ["/snippets/revenance-4.mp3"]
+            "snippet": "/snippets/revenance-1.m4a",
+            "snippets": ["/snippets/revenance-1.m4a", "/snippets/revenance-2.m4a", "/snippets/revenance-3.m4a", "/snippets/revenance-4.mp3"]
         }
     ]
 }
