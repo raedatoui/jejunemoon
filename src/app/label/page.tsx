@@ -1,6 +1,7 @@
 'use client';
 
 import { type FormEvent, useEffect, useState } from 'react';
+import { assetUrl } from '@/lib/assets';
 
 const PASSWORD = 'BakX@f+xujAfxC7bEJ_%';
 const STORAGE_KEY = 'label-auth';
@@ -77,7 +78,7 @@ export default function Label() {
             <div className="min-h-screen w-full text-stone-900 font-body pt-4 pb-12 px-4 flex justify-center print:p-0 print:min-h-0">
                 <article className="bg-white shadow-xl w-[8.5in] min-h-[11in] pt-[0.2in] px-[1in] pb-[1in] print:shadow-none print:w-full print:min-h-0 print:p-0">
                     <header className="flex items-center gap-6 pb-6 mb-10 border-b border-stone-300">
-                        <img src="/logo.png" alt="JeJune Moon" className="h-44 w-44 object-contain shrink-0" />
+                        <img src={assetUrl('/logo.png')} alt="JeJune Moon" className="h-44 w-44 object-contain shrink-0" />
                         <p className="italic text-stone-600 text-lg m-0">
                             A small record label - <br />
                             based in Brooklyn, NY.

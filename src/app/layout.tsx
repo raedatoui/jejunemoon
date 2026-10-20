@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { MuseoModerno, Lato, Instrument_Sans, Space_Mono } from 'next/font/google';
+import { assetUrl } from '@/lib/assets';
 
 const museoModerno = MuseoModerno({
     subsets: ['latin'],
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
         description: DESCRIPTION,
         // The printed logo, not the shader — the emblem on the homepage is a
         // live canvas and cannot be captured for a share card.
-        images: [{ url: '/logo.png', width: 800, height: 800, alt: 'JeJune Moon' }],
+        images: [{ url: assetUrl('/logo.png'), width: 800, height: 800, alt: 'JeJune Moon' }],
     },
     twitter: {
         // 'summary' keeps the square logo whole; summary_large_image would
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
         card: 'summary',
         title: TITLE,
         description: DESCRIPTION,
-        images: ['/logo.png'],
+        images: [assetUrl('/logo.png')],
     },
 };
 

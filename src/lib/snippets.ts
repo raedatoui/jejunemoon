@@ -1,3 +1,5 @@
+import { assetUrl } from '@/lib/assets';
+
 // Hover previews are shared between the ray burst and the catalog covers, and
 // the emblem is on screen long before the rows it points at exist, so the
 // elements live outside React: one <audio> per release, made the first time a
@@ -24,7 +26,7 @@ let playingSrc: string | null = null;
 function player(src: string) {
     let audio = players.get(src);
     if (!audio) {
-        audio = new Audio(preloaded.get(src) ?? src);
+        audio = new Audio(preloaded.get(src) ?? assetUrl(src));
         audio.preload = 'auto';
         players.set(src, audio);
     }
@@ -45,7 +47,7 @@ function advance(src: string, fraction: number) {
 // it was before — the element still has the network to fall back on.
 async function preload(src: string) {
     try {
-        const response = await fetch(src);
+        const response = await fetch(assetUrl(src));
         if (!response.ok || !response.body) throw new Error(`${src}: ${response.status}`);
         const total = Number(response.headers.get('content-length'));
         const reader = response.body.getReader();

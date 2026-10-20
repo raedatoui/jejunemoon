@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/schemas';
 import { currentSnippet, pauseSnippet, playSnippet, sourcesOf } from '@/lib/snippets';
 import { useMobile } from '@/lib/mobile';
+import { assetUrl } from '@/lib/assets';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -91,7 +92,7 @@ export function CatalogRow({
                             onMouseLeave={mobile ? undefined : pauseSnippet}
                         >
                             {release.thumb.startsWith('/') ? (
-                                <img src={release.thumb} alt={`${release.title} cover art`} className="h-full w-full object-cover" />
+                                <img src={assetUrl(release.thumb)} alt={`${release.title} cover art`} className="h-full w-full object-cover" />
                             ) : (
                                 <div className={cn('h-full w-full', release.thumb)} />
                             )}
@@ -154,7 +155,7 @@ export function CatalogRow({
                                                 className="pointer-events-auto block h-8 w-8 opacity-80 transition hover:scale-110 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ink)]"
                                             >
                                                 {icon ? (
-                                                    <img src={icon} alt="" className="h-full w-full object-contain" />
+                                                    <img src={assetUrl(icon)} alt="" className="h-full w-full object-contain" />
                                                 ) : (
                                                     <span className="font-credit text-[10px] uppercase">{link.platform}</span>
                                                 )}
