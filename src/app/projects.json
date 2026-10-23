@@ -235,6 +235,55 @@
             ],
             "snippet": "/snippets/revenance-1.m4a",
             "snippets": ["/snippets/revenance-1.m4a", "/snippets/revenance-2.m4a", "/snippets/revenance-3.m4a", "/snippets/revenance-4.mp3"]
+        },
+        {
+            "title": "Nazaré",
+            "thumb": "/albums/09HjltCLA7C8M3ruCBp9ex.jpg",
+            "artist": "Manic In Lithium",
+            "year": "2026",
+            "releaseDate": "2026-10-23",
+            "format": "Single",
+            "genre": "Alternative",
+            "links": [
+                {
+                    "platform": "Spotify",
+                    "url": "https://open.spotify.com/album/09HjltCLA7C8M3ruCBp9ex"
+                },
+                {
+                    "platform": "Apple Music",
+                    "url": "https://music.apple.com/us/album/nazar%C3%A9-single/6817609146"
+                },
+                {
+                    "platform": "iTunes",
+                    "url": "https://music.apple.com/us/album/nazar%C3%A9-single/6817609146?app=itunes"
+                },
+                {
+                    "platform": "Deezer",
+                    "url": "https://www.deezer.com/album/1109924812"
+                },
+                {
+                    "platform": "Amazon Music",
+                    "url": "https://music.amazon.com/albums/B0HLJZ8YGW"
+                },
+                {
+                    "platform": "SoundCloud",
+                    "url": "https://soundcloud.com/manic-in-lithium/nazare"
+                },
+                {
+                    "platform": "Tidal",
+                    "url": "https://tidal.com/album/565700514"
+                },
+                {
+                    "platform": "Pandora",
+                    "url": "https://www.pandora.com/TR:213924530"
+                },
+                {
+                    "platform": "Amazon",
+                    "url": "https://amazon.com/dp/B0HLKDZ1DR"
+                }
+            ],
+            "snippet": "/snippets/nazare-1.mp3",
+            "snippets": ["/snippets/nazare-1.mp3"]
         }
     ]
 }

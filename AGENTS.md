@@ -31,6 +31,10 @@ This is a Next.js 16 static site for JeJune Moon (a music/art project showcase).
 - `src/lib/` - Utilities and schemas
 - `src/app/projects.json` - Project data (validated by ProjectsListSchema)
 
+### Adding Releases
+
+Use the [add-release skill](.agents/skills/add-release/SKILL.md) when adding a music release. It covers finding platform links, selecting supplied or local artwork, making MP3 snippets, uploading assets to Google Cloud Storage, and updating the catalog.
+
 ### Styling Conventions
 
 Biome enforces:
