@@ -524,7 +524,8 @@ function useMoonShader(
             gl.deleteProgram(prog);
             gl.deleteShader(vs);
             gl.deleteShader(fs);
-            gl.getExtension('WEBGL_lose_context')?.loseContext();
+            // The context itself is left alive: a remount reuses this canvas, and
+            // getContext would hand back a lost context that compiles nothing.
         };
     }, [canvasRef, sectors, still, fillRef]);
 }
